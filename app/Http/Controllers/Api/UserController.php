@@ -20,8 +20,24 @@ class UserController extends Controller
             }))
             ->orderBy('name')
             ->limit(30)
-            ->get(['id', 'name', 'email']);
+            ->get(['id', 'name', 'email', 'avatar', 'last_seen_at']);
 
         return response()->json($users);
+    }
+
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'name' => ['sometimes', 'required', 'string', 'max:120'],
+            'avatar' => ['nullable', 'string', 'max:500000'],
+        ]);
+
+        $user = $request->user();
+        $user->fill($data)->save();
+
+        return response()->json([
+            'message' => 'Profile updated successfully.',
+            'user' => $user->fresh(),
+        ]);
     }
 }

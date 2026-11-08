@@ -1,0 +1,31 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->text('avatar')->nullable()->after('name');
+        });
+
+        Schema::table('conversations', function (Blueprint $table) {
+            $table->string('disappearing_duration', 32)->nullable()->default('off')->after('is_group');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropColumn('avatar');
+        });
+
+        Schema::table('conversations', function (Blueprint $table) {
+            $table->dropColumn('disappearing_duration');
+        });
+    }
+};
+

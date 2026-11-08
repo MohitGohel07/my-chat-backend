@@ -19,8 +19,10 @@ Route::get('config', ConfigController::class);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('me', fn (\Illuminate\Http\Request $request) => $request->user());
+    Route::match(['put', 'post', 'patch'], 'profile', [UserController::class, 'updateProfile']);
     Route::get('users', [UserController::class, 'index']);
     Route::apiResource('conversations', ConversationController::class)->only(['index', 'store', 'show']);
+    Route::patch('conversations/{conversation}/disappearing', [ConversationController::class, 'updateDisappearing']);
     Route::get('conversations/{conversation}/messages', [MessageController::class, 'index']);
     Route::post('conversations/{conversation}/messages', [MessageController::class, 'store']);
     Route::delete('conversations/{conversation}/messages', [MessageController::class, 'destroy']);

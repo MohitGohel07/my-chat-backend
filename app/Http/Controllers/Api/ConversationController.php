@@ -11,7 +11,13 @@ class ConversationController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        return response()->json($request->user()->conversations()->with('participants')->latest()->paginate(20));
+        return response()->json(
+            $request->user()
+                ->conversations()
+                ->with('participants:id,name,email,avatar,last_seen_at')
+                ->latest()
+                ->paginate(20)
+        );
     }
 
     public function store(Request $request): JsonResponse
@@ -27,10 +33,10 @@ class ConversationController extends Controller
 
         if ($data['is_group'] ?? false) {
             $participantIds = collect($data['user_ids'])->push($user->id)->unique()->values()->all();
-            $conversation = Conversation::create(['title' => $data['title'], 'is_group' => true]);
+            $conversation = Conversation::create(['title' => $data['title'], 'is_group' => true, 'disappearing_duration' => 'off']);
             $conversation->participants()->attach($participantIds);
 
-            return response()->json($conversation->load('participants'), 201);
+            return response()->json($conversation->load('participants:id,name,email,avatar,last_seen_at'), 201);
         }
 
         abort_unless(isset($data['user_id']), 422, 'A user is required for a personal conversation.');
@@ -42,18 +48,34 @@ class ConversationController extends Controller
             ->first();
 
         if ($existing) {
-            return response()->json($existing->load('participants'));
+            return response()->json($existing->load('participants:id,name,email,avatar,last_seen_at'));
         }
 
-        $conversation = Conversation::create(['is_group' => false]);
+        $conversation = Conversation::create(['is_group' => false, 'disappearing_duration' => 'off']);
         $conversation->participants()->attach([$user->id, $data['user_id']]);
 
-        return response()->json($conversation->load('participants'), 201);
+        return response()->json($conversation->load('participants:id,name,email,avatar,last_seen_at'), 201);
     }
 
     public function show(Request $request, Conversation $conversation): JsonResponse
     {
         abort_unless($conversation->participants()->whereKey($request->user()->id)->exists(), 403);
-        return response()->json($conversation->load('participants'));
+        return response()->json($conversation->load('participants:id,name,email,avatar,last_seen_at'));
+    }
+
+    public function updateDisappearing(Request $request, Conversation $conversation): JsonResponse
+    {
+        abort_unless($conversation->participants()->whereKey($request->user()->id)->exists(), 403);
+
+        $data = $request->validate([
+            'disappearing_duration' => ['required', 'string', 'in:off,1_hour,8_hours,1_week,1_month'],
+        ]);
+
+        $conversation->update(['disappearing_duration' => $data['disappearing_duration']]);
+
+        return response()->json([
+            'message' => 'Disappearing messages setting updated.',
+            'conversation' => $conversation->fresh()->load('participants:id,name,email,avatar,last_seen_at'),
+        ]);
     }
 }

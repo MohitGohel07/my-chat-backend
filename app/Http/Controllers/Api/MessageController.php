@@ -13,9 +13,31 @@ class MessageController extends Controller
     {
         $this->authorizeParticipant($request, $conversation);
         $request->user()->forceFill(['last_seen_at' => now()])->save();
+
+        $duration = $conversation->disappearing_duration ?? 'off';
+        if ($duration && $duration !== 'off') {
+            $cutoff = match ($duration) {
+                '1_hour' => now()->subHour(),
+                '8_hours' => now()->subHours(8),
+                '1_week' => now()->subWeek(),
+                '1_month' => now()->subMonth(),
+                default => null,
+            };
+
+            if ($cutoff) {
+                $conversation->messages()
+                    ->where(function ($query) use ($cutoff) {
+                        $query->where(function ($q) use ($cutoff) {
+                            $q->whereNotNull('read_at')->where('read_at', '<=', $cutoff);
+                        })->orWhere('created_at', '<=', $cutoff);
+                    })
+                    ->delete();
+            }
+        }
+
         $conversation->messages()->whereNull('read_at')->where('user_id', '!=', $request->user()->id)->update(['read_at' => now()]);
 
-        return response()->json($conversation->messages()->with('user:id,name,last_seen_at')->latest()->cursorPaginate(30));
+        return response()->json($conversation->messages()->with('user:id,name,avatar,last_seen_at')->latest()->cursorPaginate(30));
     }
 
     public function store(Request $request, Conversation $conversation): JsonResponse
@@ -24,7 +46,7 @@ class MessageController extends Controller
         $data = $request->validate(['body' => ['required', 'string', 'max:5000']]);
         $message = $conversation->messages()->create(['user_id' => $request->user()->id, 'body' => $data['body']]);
 
-        return response()->json($message->load('user:id,name,last_seen_at'), 201);
+        return response()->json($message->load('user:id,name,avatar,last_seen_at'), 201);
     }
 
     public function destroy(Request $request, Conversation $conversation): JsonResponse

@@ -9,11 +9,14 @@ class Conversation extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['title', 'is_group'];
+    protected $fillable = ['title', 'is_group', 'disappearing_duration'];
 
     protected function casts(): array
     {
-        return ['is_group' => 'boolean'];
+        return [
+            'is_group' => 'boolean',
+            'disappearing_duration' => 'string',
+        ];
     }
 
     public function participants()
