@@ -27,6 +27,14 @@ class MessageController extends Controller
         return response()->json($message->load('user:id,name,last_seen_at'), 201);
     }
 
+    public function destroy(Request $request, Conversation $conversation): JsonResponse
+    {
+        $this->authorizeParticipant($request, $conversation);
+        $conversation->messages()->delete();
+
+        return response()->json(['message' => 'Chat cleared.']);
+    }
+
     private function authorizeParticipant(Request $request, Conversation $conversation): void
     {
         abort_unless($conversation->participants()->whereKey($request->user()->id)->exists(), 403);

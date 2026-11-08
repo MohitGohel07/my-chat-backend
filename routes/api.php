@@ -23,4 +23,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('conversations', ConversationController::class)->only(['index', 'store', 'show']);
     Route::get('conversations/{conversation}/messages', [MessageController::class, 'index']);
     Route::post('conversations/{conversation}/messages', [MessageController::class, 'store']);
+    Route::delete('conversations/{conversation}/messages', [MessageController::class, 'destroy']);
 });
