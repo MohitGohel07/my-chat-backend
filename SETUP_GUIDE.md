@@ -168,3 +168,23 @@ CHAT_ENCRYPTION_KEY_BACKUP=false
 - Configure object storage for attachments.
 - Add rate limiting, moderation, block/report workflows, and security tests.
 - Complete and audit the E2E protocol before enabling encryption.
+
+## 9. Live database migration and user seed
+
+After the backend deployment is updated, run these commands from Laravel Cloud's production shell:
+
+```bash
+php artisan migrate --force
+php artisan db:seed --class=Database\\Seeders\\ChatUsersSeeder --force
+```
+
+Before seeding, add these environment variables in Laravel Cloud. Use a strong production password instead of the local test password:
+
+```env
+CHAT_SEED_USERS=true
+CHAT_SEED_PASSWORD=your_strong_password
+CHAT_SEED_MOHIT_EMAIL=mohit@gmail.com
+CHAT_SEED_MOHIT2_EMAIL=mohit2@gmail.com
+```
+
+After the seed completes, set `CHAT_SEED_USERS=false` and redeploy. The seeder is idempotent and will not create duplicate users.

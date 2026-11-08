@@ -10,4 +10,8 @@ return [
     'max_upload_mb' => (int) env('CHAT_MAX_UPLOAD_MB', 25),
     'encryption_mode' => env('CHAT_ENCRYPTION_MODE', 'client-side'),
     'encryption_key_backup' => (bool) env('CHAT_ENCRYPTION_KEY_BACKUP', false),
+    'seed_users' => (bool) env('CHAT_SEED_USERS', false),
+    'seed_password' => env('CHAT_SEED_PASSWORD'),
+    'seed_mohit_email' => env('CHAT_SEED_MOHIT_EMAIL', 'mohit@gmail.com'),
+    'seed_mohit2_email' => env('CHAT_SEED_MOHIT2_EMAIL', 'mohit2@gmail.com'),
 ];
