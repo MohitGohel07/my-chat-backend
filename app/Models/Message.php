@@ -9,11 +9,14 @@ class Message extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['conversation_id', 'user_id', 'body', 'read_at'];
+    protected $fillable = ['conversation_id', 'user_id', 'body', 'type', 'attachment_url', 'metadata', 'read_at'];
 
     protected function casts(): array
     {
-        return ['read_at' => 'datetime'];
+        return [
+            'read_at' => 'datetime',
+            'metadata' => 'array',
+        ];
     }
 
     public function conversation()

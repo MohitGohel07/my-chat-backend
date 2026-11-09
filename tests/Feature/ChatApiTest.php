@@ -17,18 +17,101 @@ class ChatApiTest extends TestCase
 
         $response = $this->actingAs($user, 'sanctum')->putJson('/api/profile', [
             'name' => 'Updated Name',
+            'username' => 'updated_user',
+            'phone' => '+919876543210',
             'avatar' => 'avatar_1',
         ]);
 
         $response->assertOk()
             ->assertJsonPath('user.name', 'Updated Name')
+            ->assertJsonPath('user.username', 'updated_user')
+            ->assertJsonPath('user.phone', '+919876543210')
             ->assertJsonPath('user.avatar', 'avatar_1');
 
         $this->assertDatabaseHas('users', [
             'id' => $user->id,
             'name' => 'Updated Name',
-            'avatar' => 'avatar_1',
+            'username' => 'updated_user',
+            'phone' => '+919876543210',
         ]);
+    }
+
+    public function test_users_list_is_empty_without_search_and_finds_by_phone_or_username(): void
+    {
+        $me = User::factory()->create();
+        $target = User::factory()->create([
+            'name' => 'Alice Johnson',
+            'username' => 'alice_j',
+            'phone' => '+919999888877',
+            'email' => 'alice@test.com',
+        ]);
+
+        // Empty search returns empty for privacy
+        $response = $this->actingAs($me, 'sanctum')->getJson('/api/users');
+        $response->assertOk()->assertExactJson([]);
+
+        // Search by username
+        $resUsername = $this->actingAs($me, 'sanctum')->getJson('/api/users?search=alice_j');
+        $resUsername->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.id', $target->id);
+
+        // Search by phone
+        $resPhone = $this->actingAs($me, 'sanctum')->getJson('/api/users?search=9999888877');
+        $resPhone->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.id', $target->id);
+    }
+
+    public function test_user_can_send_media_and_contact_messages(): void
+    {
+        $user1 = User::factory()->create();
+        $user2 = User::factory()->create();
+
+        $conversation = Conversation::create(['is_group' => false]);
+        $conversation->participants()->attach([$user1->id, $user2->id]);
+
+        // Image message
+        $response = $this->actingAs($user1, 'sanctum')->postJson("/api/conversations/{$conversation->id}/messages", [
+            'body' => 'Look at this photo',
+            'type' => 'image',
+            'attachment_url' => 'https://example.com/photo.jpg',
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('type', 'image')
+            ->assertJsonPath('attachment_url', 'https://example.com/photo.jpg');
+
+        // Contact message
+        $resContact = $this->actingAs($user1, 'sanctum')->postJson("/api/conversations/{$conversation->id}/messages", [
+            'type' => 'contact',
+            'metadata' => ['name' => 'Bob Smith', 'phone' => '+919123456789'],
+        ]);
+
+        $resContact->assertCreated()
+            ->assertJsonPath('type', 'contact')
+            ->assertJsonPath('metadata.name', 'Bob Smith');
+    }
+
+    public function test_user_can_log_and_fetch_calls(): void
+    {
+        $caller = User::factory()->create();
+        $receiver = User::factory()->create();
+
+        $response = $this->actingAs($caller, 'sanctum')->postJson('/api/calls', [
+            'receiver_id' => $receiver->id,
+            'type' => 'voice',
+            'status' => 'ended',
+            'duration_seconds' => 45,
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('type', 'voice')
+            ->assertJsonPath('status', 'ended')
+            ->assertJsonPath('duration_seconds', 45);
+
+        $list = $this->actingAs($caller, 'sanctum')->getJson('/api/calls');
+        $list->assertOk()->assertJsonCount(1, 'data');
     }
 
     public function test_user_can_update_disappearing_messages_setting(): void
@@ -84,4 +167,3 @@ class ChatApiTest extends TestCase
         $this->assertDatabaseHas('messages', ['id' => $recentMessage->id]);
     }
 }
-

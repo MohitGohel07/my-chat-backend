@@ -37,16 +37,32 @@ class MessageController extends Controller
 
         $conversation->messages()->whereNull('read_at')->where('user_id', '!=', $request->user()->id)->update(['read_at' => now()]);
 
-        return response()->json($conversation->messages()->with('user:id,name,avatar,last_seen_at')->latest()->cursorPaginate(30));
+        return response()->json($conversation->messages()->with('user:id,name,username,avatar,phone,last_seen_at')->latest()->cursorPaginate(30));
     }
 
     public function store(Request $request, Conversation $conversation): JsonResponse
     {
         $this->authorizeParticipant($request, $conversation);
-        $data = $request->validate(['body' => ['required', 'string', 'max:5000']]);
-        $message = $conversation->messages()->create(['user_id' => $request->user()->id, 'body' => $data['body']]);
+        $data = $request->validate([
+            'body' => ['nullable', 'string', 'max:5000'],
+            'type' => ['sometimes', 'string', 'in:text,image,video,contact'],
+            'attachment_url' => ['nullable', 'string', 'max:500000'],
+            'metadata' => ['nullable', 'array'],
+        ]);
 
-        return response()->json($message->load('user:id,name,avatar,last_seen_at'), 201);
+        if (empty($data['body']) && empty($data['attachment_url']) && empty($data['metadata'])) {
+            return response()->json(['message' => 'Message body or attachment is required.'], 422);
+        }
+
+        $message = $conversation->messages()->create([
+            'user_id' => $request->user()->id,
+            'body' => $data['body'] ?? '',
+            'type' => $data['type'] ?? 'text',
+            'attachment_url' => $data['attachment_url'] ?? null,
+            'metadata' => $data['metadata'] ?? null,
+        ]);
+
+        return response()->json($message->load('user:id,name,username,avatar,phone,last_seen_at'), 201);
     }
 
     public function destroy(Request $request, Conversation $conversation): JsonResponse
