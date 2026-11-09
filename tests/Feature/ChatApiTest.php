@@ -63,7 +63,7 @@ class ChatApiTest extends TestCase
             ->assertJsonPath('0.id', $target->id);
     }
 
-    public function test_user_can_send_media_and_contact_messages(): void
+    public function test_user_can_send_media_reply_and_contact_messages(): void
     {
         $user1 = User::factory()->create();
         $user2 = User::factory()->create();
@@ -71,16 +71,18 @@ class ChatApiTest extends TestCase
         $conversation = Conversation::create(['is_group' => false]);
         $conversation->participants()->attach([$user1->id, $user2->id]);
 
-        // Image message
+        // Image message with reply
         $response = $this->actingAs($user1, 'sanctum')->postJson("/api/conversations/{$conversation->id}/messages", [
             'body' => 'Look at this photo',
             'type' => 'image',
             'attachment_url' => 'https://example.com/photo.jpg',
+            'reply_to' => ['sender_name' => 'Alice', 'body' => 'Original text'],
         ]);
 
         $response->assertCreated()
             ->assertJsonPath('type', 'image')
-            ->assertJsonPath('attachment_url', 'https://example.com/photo.jpg');
+            ->assertJsonPath('attachment_url', 'https://example.com/photo.jpg')
+            ->assertJsonPath('reply_to.sender_name', 'Alice');
 
         // Contact message
         $resContact = $this->actingAs($user1, 'sanctum')->postJson("/api/conversations/{$conversation->id}/messages", [
@@ -91,6 +93,66 @@ class ChatApiTest extends TestCase
         $resContact->assertCreated()
             ->assertJsonPath('type', 'contact')
             ->assertJsonPath('metadata.name', 'Bob Smith');
+    }
+
+    public function test_user_can_react_pin_and_delete_single_message(): void
+    {
+        $user1 = User::factory()->create();
+        $user2 = User::factory()->create();
+
+        $conversation = Conversation::create(['is_group' => false]);
+        $conversation->participants()->attach([$user1->id, $user2->id]);
+
+        $msg = $conversation->messages()->create([
+            'user_id' => $user2->id,
+            'body' => 'Hello there',
+        ]);
+
+        // React with heart
+        $resReact = $this->actingAs($user1, 'sanctum')
+            ->postJson("/api/conversations/{$conversation->id}/messages/{$msg->id}/react", [
+                'emoji' => '❤️',
+            ]);
+
+        $resReact->assertOk()
+            ->assertJsonPath('reactions.❤️.0', $user1->id);
+
+        // Pin message
+        $resPin = $this->actingAs($user1, 'sanctum')
+            ->patchJson("/api/conversations/{$conversation->id}/messages/{$msg->id}/pin");
+
+        $resPin->assertOk()->assertJsonPath('is_pinned', true);
+
+        // Delete single message
+        $resDel = $this->actingAs($user1, 'sanctum')
+            ->deleteJson("/api/conversations/{$conversation->id}/messages/{$msg->id}");
+
+        $resDel->assertOk();
+        $this->assertDatabaseMissing('messages', ['id' => $msg->id]);
+    }
+
+    public function test_user_can_lock_and_unlock_conversation(): void
+    {
+        $user1 = User::factory()->create();
+        $user2 = User::factory()->create();
+
+        $conversation = Conversation::create(['is_group' => false]);
+        $conversation->participants()->attach([$user1->id, $user2->id]);
+
+        $res = $this->actingAs($user1, 'sanctum')
+            ->patchJson("/api/conversations/{$conversation->id}/lock", [
+                'is_locked' => true,
+                'lock_pin' => '1234',
+            ]);
+
+        $res->assertOk()
+            ->assertJsonPath('conversation.is_locked', true);
+
+        $this->assertDatabaseHas('conversations', [
+            'id' => $conversation->id,
+            'is_locked' => true,
+            'lock_pin' => '1234',
+        ]);
     }
 
     public function test_user_can_log_and_fetch_calls(): void

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Conversation;
+use App\Models\Message;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -48,6 +49,7 @@ class MessageController extends Controller
             'type' => ['sometimes', 'string', 'in:text,image,video,contact'],
             'attachment_url' => ['nullable', 'string', 'max:500000'],
             'metadata' => ['nullable', 'array'],
+            'reply_to' => ['nullable', 'array'],
         ]);
 
         if (empty($data['body']) && empty($data['attachment_url']) && empty($data['metadata'])) {
@@ -60,9 +62,60 @@ class MessageController extends Controller
             'type' => $data['type'] ?? 'text',
             'attachment_url' => $data['attachment_url'] ?? null,
             'metadata' => $data['metadata'] ?? null,
+            'reply_to' => $data['reply_to'] ?? null,
         ]);
 
         return response()->json($message->load('user:id,name,username,avatar,phone,last_seen_at'), 201);
+    }
+
+    public function react(Request $request, Conversation $conversation, Message $message): JsonResponse
+    {
+        $this->authorizeParticipant($request, $conversation);
+        abort_unless($message->conversation_id === $conversation->id, 404);
+
+        $data = $request->validate([
+            'emoji' => ['required', 'string', 'max:16'],
+        ]);
+
+        $userId = $request->user()->id;
+        $reactions = $message->reactions ?? [];
+        $emoji = $data['emoji'];
+
+        $userList = $reactions[$emoji] ?? [];
+        if (in_array($userId, $userList)) {
+            // Remove reaction if already reacted with this emoji
+            $reactions[$emoji] = array_values(array_diff($userList, [$userId]));
+            if (empty($reactions[$emoji])) {
+                unset($reactions[$emoji]);
+            }
+        } else {
+            // Add reaction
+            $reactions[$emoji][] = $userId;
+        }
+
+        $message->update(['reactions' => $reactions]);
+
+        return response()->json($message->load('user:id,name,username,avatar,phone,last_seen_at'));
+    }
+
+    public function pin(Request $request, Conversation $conversation, Message $message): JsonResponse
+    {
+        $this->authorizeParticipant($request, $conversation);
+        abort_unless($message->conversation_id === $conversation->id, 404);
+
+        $message->update(['is_pinned' => ! $message->is_pinned]);
+
+        return response()->json($message->load('user:id,name,username,avatar,phone,last_seen_at'));
+    }
+
+    public function destroySingle(Request $request, Conversation $conversation, Message $message): JsonResponse
+    {
+        $this->authorizeParticipant($request, $conversation);
+        abort_unless($message->conversation_id === $conversation->id, 404);
+
+        $message->delete();
+
+        return response()->json(['message' => 'Message deleted.']);
     }
 
     public function destroy(Request $request, Conversation $conversation): JsonResponse

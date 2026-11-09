@@ -26,9 +26,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('users/sync-contacts', [UserController::class, 'syncContacts']);
     Route::apiResource('conversations', ConversationController::class)->only(['index', 'store', 'show']);
     Route::patch('conversations/{conversation}/disappearing', [ConversationController::class, 'updateDisappearing']);
+    Route::patch('conversations/{conversation}/lock', [ConversationController::class, 'lock']);
     Route::get('conversations/{conversation}/messages', [MessageController::class, 'index']);
     Route::post('conversations/{conversation}/messages', [MessageController::class, 'store']);
     Route::delete('conversations/{conversation}/messages', [MessageController::class, 'destroy']);
+    Route::post('conversations/{conversation}/messages/{message}/react', [MessageController::class, 'react']);
+    Route::patch('conversations/{conversation}/messages/{message}/pin', [MessageController::class, 'pin']);
+    Route::delete('conversations/{conversation}/messages/{message}', [MessageController::class, 'destroySingle']);
     Route::post('upload', [MediaController::class, 'upload']);
     Route::get('calls', [CallController::class, 'index']);
     Route::post('calls', [CallController::class, 'store']);

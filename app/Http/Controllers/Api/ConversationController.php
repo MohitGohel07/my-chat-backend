@@ -78,4 +78,24 @@ class ConversationController extends Controller
             'conversation' => $conversation->fresh()->load('participants:id,name,username,email,phone,avatar,last_seen_at'),
         ]);
     }
+
+    public function lock(Request $request, Conversation $conversation): JsonResponse
+    {
+        abort_unless($conversation->participants()->whereKey($request->user()->id)->exists(), 403);
+
+        $data = $request->validate([
+            'is_locked' => ['required', 'boolean'],
+            'lock_pin' => ['nullable', 'string', 'max:10'],
+        ]);
+
+        $conversation->update([
+            'is_locked' => $data['is_locked'],
+            'lock_pin' => $data['is_locked'] ? ($data['lock_pin'] ?? null) : null,
+        ]);
+
+        return response()->json([
+            'message' => 'Chat lock status updated.',
+            'conversation' => $conversation->fresh()->load('participants:id,name,username,email,phone,avatar,last_seen_at'),
+        ]);
+    }
 }
