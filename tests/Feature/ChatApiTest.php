@@ -160,20 +160,32 @@ class ChatApiTest extends TestCase
         $caller = User::factory()->create();
         $receiver = User::factory()->create();
 
-        $response = $this->actingAs($caller, 'sanctum')->postJson('/api/calls', [
+        $responseVoice = $this->actingAs($caller, 'sanctum')->postJson('/api/calls', [
             'receiver_id' => $receiver->id,
             'type' => 'voice',
             'status' => 'ended',
             'duration_seconds' => 45,
         ]);
 
-        $response->assertCreated()
+        $responseVoice->assertCreated()
             ->assertJsonPath('type', 'voice')
             ->assertJsonPath('status', 'ended')
             ->assertJsonPath('duration_seconds', 45);
 
+        $responseVideo = $this->actingAs($caller, 'sanctum')->postJson('/api/calls', [
+            'receiver_id' => $receiver->id,
+            'type' => 'video',
+            'status' => 'ended',
+            'duration_seconds' => 120,
+        ]);
+
+        $responseVideo->assertCreated()
+            ->assertJsonPath('type', 'video')
+            ->assertJsonPath('status', 'ended')
+            ->assertJsonPath('duration_seconds', 120);
+
         $list = $this->actingAs($caller, 'sanctum')->getJson('/api/calls');
-        $list->assertOk()->assertJsonCount(1, 'data');
+        $list->assertOk()->assertJsonCount(2, 'data');
     }
 
     public function test_user_can_update_disappearing_messages_setting(): void
