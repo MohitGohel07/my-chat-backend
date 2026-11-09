@@ -36,4 +36,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('upload', [MediaController::class, 'upload']);
     Route::get('calls', [CallController::class, 'index']);
     Route::post('calls', [CallController::class, 'store']);
+    Route::post('calls/initiate', [CallController::class, 'initiate']);
+    Route::get('calls/incoming', [CallController::class, 'incoming']);
+    Route::get('calls/{call}/status', [CallController::class, 'status']);
+    Route::post('calls/{call}/accept', [CallController::class, 'accept']);
+    Route::post('calls/{call}/reject', [CallController::class, 'reject']);
+    Route::post('calls/{call}/end', [CallController::class, 'end']);
 });

@@ -188,6 +188,47 @@ class ChatApiTest extends TestCase
         $list->assertOk()->assertJsonCount(2, 'data');
     }
 
+    public function test_live_call_signaling_lifecycle(): void
+    {
+        $caller = User::factory()->create(['name' => 'Alice']);
+        $receiver = User::factory()->create(['name' => 'Bob']);
+
+        // 1. Caller initiates video call
+        $initRes = $this->actingAs($caller, 'sanctum')->postJson('/api/calls/initiate', [
+            'receiver_id' => $receiver->id,
+            'type' => 'video',
+        ]);
+        $initRes->assertCreated()
+            ->assertJsonPath('call.status', 'ringing')
+            ->assertJsonPath('call.type', 'video');
+        $callId = $initRes->json('call.id');
+
+        // 2. Receiver polls incoming calls and finds the ringing call
+        $incRes = $this->actingAs($receiver, 'sanctum')->getJson('/api/calls/incoming');
+        $incRes->assertOk()
+            ->assertJsonPath('call.id', $callId)
+            ->assertJsonPath('call.status', 'ringing')
+            ->assertJsonPath('call.caller.name', 'Alice');
+
+        // 3. Receiver accepts the call
+        $acceptRes = $this->actingAs($receiver, 'sanctum')->postJson("/api/calls/{$callId}/accept");
+        $acceptRes->assertOk()
+            ->assertJsonPath('call.status', 'accepted');
+
+        // 4. Caller polls status and sees accepted!
+        $statusRes = $this->actingAs($caller, 'sanctum')->getJson("/api/calls/{$callId}/status");
+        $statusRes->assertOk()
+            ->assertJsonPath('call.status', 'accepted');
+
+        // 5. Either party ends the call
+        $endRes = $this->actingAs($caller, 'sanctum')->postJson("/api/calls/{$callId}/end", [
+            'duration_seconds' => 75,
+        ]);
+        $endRes->assertOk()
+            ->assertJsonPath('call.status', 'ended')
+            ->assertJsonPath('call.duration_seconds', 75);
+    }
+
     public function test_user_can_update_disappearing_messages_setting(): void
     {
         $user1 = User::factory()->create();
