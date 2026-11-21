@@ -26,8 +26,8 @@ class AppServiceProvider extends ServiceProvider
                     @touch($database);
                 }
 
-                // Auto-run migrations if tables are not yet initialized on fresh container boot
-                if (! \Illuminate\Support\Facades\Schema::hasTable('users')) {
+                // Auto-run migrations if clipper tables are not yet initialized on container boot
+                if (! \Illuminate\Support\Facades\Schema::hasTable('clipper_logs') || ! \Illuminate\Support\Facades\Schema::hasTable('users')) {
                     try {
                         \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
                     } catch (\Throwable $e) {

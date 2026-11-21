@@ -43,3 +43,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('calls/{call}/reject', [CallController::class, 'reject']);
     Route::post('calls/{call}/end', [CallController::class, 'end']);
 });
+
+/*
+|--------------------------------------------------------------------------
+| Auto Clipper Worker API (Heartbeats, Active Streams, Clip Ingestion)
+|--------------------------------------------------------------------------
+*/
+Route::prefix('clipper')->group(function () {
+    Route::post('heartbeat', [App\Http\Controllers\Api\Clipper\WorkerCallbackController::class, 'heartbeat']);
+    Route::get('streams/active', [App\Http\Controllers\Api\Clipper\WorkerCallbackController::class, 'activeStreams']);
+    Route::post('clip-created', [App\Http\Controllers\Api\Clipper\WorkerCallbackController::class, 'clipCreated']);
+});

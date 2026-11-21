@@ -1,0 +1,154 @@
+<?php
+
+namespace App\Http\Controllers\Api\Clipper;
+
+use App\Http\Controllers\Controller;
+use App\Models\Clipper\ClipperClip;
+use App\Models\Clipper\ClipperHighlight;
+use App\Models\Clipper\ClipperLog;
+use App\Models\Clipper\ClipperSession;
+use App\Models\Clipper\ClipperSetting;
+use App\Models\Clipper\ClipperStream;
+use App\Models\Clipper\ClipperUpload;
+use App\Models\Clipper\ClipperYoutubeAccount;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+class WorkerCallbackController extends Controller
+{
+    /**
+     * Receive worker heartbeat ping and update health status.
+     */
+    public function heartbeat(Request $request): JsonResponse
+    {
+        $payload = $request->validate([
+            'worker_id' => ['nullable', 'string'],
+            'endpoint' => ['nullable', 'string'],
+            'cpu_usage' => ['nullable', 'string'],
+            'memory_usage' => ['nullable', 'string'],
+            'disk_free' => ['nullable', 'string'],
+            'active_tasks' => ['nullable', 'integer'],
+        ]);
+
+        ClipperSetting::set('worker_status', 'online');
+        ClipperSetting::set('worker_last_seen', now()->toIso8601String());
+        ClipperSetting::set('worker_endpoint', $payload['endpoint'] ?? config('clipper.worker_url'));
+        ClipperSetting::set('worker_telemetry', $payload);
+
+        return response()->json([
+            'status' => 'acknowledged',
+            'server_time' => now()->toIso8601String(),
+            'active_streams_count' => ClipperStream::where('status', 'monitoring')->count(),
+        ]);
+    }
+
+    /**
+     * Provide list of streams that are actively set to 'monitoring'.
+     */
+    public function activeStreams(Request $request): JsonResponse
+    {
+        $streams = ClipperStream::where('status', 'monitoring')->get();
+
+        return response()->json([
+            'streams' => $streams,
+        ]);
+    }
+
+    /**
+     * Receive a newly rendered highlight clip from the worker service.
+     */
+    public function clipCreated(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'stream_id' => ['required', 'exists:clipper_streams,id'],
+            'title' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'tags' => ['nullable', 'array'],
+            'duration' => ['required', 'numeric'],
+            'aspect_ratio' => ['nullable', 'string'],
+            'score' => ['required', 'numeric'],
+            'video_path' => ['nullable', 'string'],
+            'thumbnail_path' => ['nullable', 'string'],
+            'captions_path' => ['nullable', 'string'],
+            'signals' => ['nullable', 'array'],
+            'start_seconds' => ['nullable', 'numeric'],
+            'end_seconds' => ['nullable', 'numeric'],
+            'file_size' => ['nullable', 'integer'],
+        ]);
+
+        $stream = ClipperStream::findOrFail($data['stream_id']);
+
+        // 1. Create or link to session
+        $session = ClipperSession::create([
+            'stream_id' => $stream->id,
+            'worker_id' => $request->input('worker_id', 'python-worker-01'),
+            'status' => 'completed',
+            'started_at' => now()->subSeconds((int) $data['duration'] + 60),
+            'ended_at' => now(),
+            'bytes_captured' => $data['file_size'] ?? 15000000,
+            'highlights_count' => 1,
+            'clips_count' => 1,
+        ]);
+
+        // 2. Create highlight record
+        $highlight = ClipperHighlight::create([
+            'stream_id' => $stream->id,
+            'session_id' => $session->id,
+            'start_seconds' => $data['start_seconds'] ?? 0,
+            'end_seconds' => $data['end_seconds'] ?? $data['duration'],
+            'score' => $data['score'],
+            'signals' => $data['signals'] ?? ['energy_spike' => 0.95],
+            'status' => 'clipped',
+        ]);
+
+        // 3. Create clip record
+        $clip = ClipperClip::create([
+            'stream_id' => $stream->id,
+            'session_id' => $session->id,
+            'highlight_id' => $highlight->id,
+            'title' => $data['title'],
+            'description' => $data['description'] ?? "Highlights from {$stream->name}! #GTAVI #Shorts #Gaming",
+            'tags' => $data['tags'] ?? ['GTAVI', 'Shorts', 'Gaming'],
+            'duration' => $data['duration'],
+            'aspect_ratio' => $data['aspect_ratio'] ?? '9:16',
+            'video_path' => $data['video_path'] ?? null,
+            'thumbnail_path' => $data['thumbnail_path'] ?? null,
+            'captions_path' => $data['captions_path'] ?? null,
+            'storage_disk' => config('clipper.storage_disk', 'local'),
+            'score' => $data['score'],
+            'status' => 'ready',
+            'approval_status' => $stream->require_approval ? 'pending' : 'approved',
+            'file_size' => $data['file_size'] ?? null,
+        ]);
+
+        ClipperLog::record(
+            'success',
+            "Clip created by Worker: \"{$clip->title}\" (Duration: {$clip->duration}s, Score: {$clip->score}/100)",
+            $stream->id
+        );
+
+        // 4. Auto-enqueue for YouTube upload if eligible
+        $youtube = ClipperYoutubeAccount::where('is_active', true)->first();
+        if ($youtube && $clip->approval_status === 'approved') {
+            $defaultPrivacy = ClipperSetting::get('default_privacy', $stream->upload_privacy ?? 'public');
+            $upload = ClipperUpload::create([
+                'clip_id' => $clip->id,
+                'status' => 'queued',
+                'privacy' => $defaultPrivacy,
+                'attempts' => 0,
+            ]);
+
+            ClipperLog::record(
+                'info',
+                "Dispatched clip [{$clip->id}] to YouTube Upload Queue for channel [{$youtube->channel_title}].",
+                $stream->id
+            );
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'clip_id' => $clip->id,
+            'approval_status' => $clip->approval_status,
+        ], 201);
+    }
+}

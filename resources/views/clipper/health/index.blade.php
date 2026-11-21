@@ -10,9 +10,16 @@
                 Diagnostics for Laravel Cloud scheduler, queue backlog, and the external video worker
             </p>
         </div>
-        <div>
+        <div class="flex items-center gap-2">
+            <form action="{{ route('clipper.health.testPing') }}" method="POST" class="inline">
+                @csrf
+                <button type="submit" class="px-3 py-1.5 rounded-lg bg-pink-600 hover:bg-pink-500 text-white text-xs font-semibold shadow-lg shadow-pink-600/30 transition flex items-center gap-1.5">
+                    <span>⚡</span>
+                    <span>Simulate Heartbeat</span>
+                </button>
+            </form>
             <a href="{{ route('clipper.health.index') }}" class="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold border border-zinc-700 transition">
-                🔄 Refresh Telemetry
+                🔄 Refresh
             </a>
         </div>
     </div>

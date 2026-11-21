@@ -60,14 +60,27 @@
                             <div class="text-xs text-rose-400 font-mono mt-1">{{ $item->last_error }}</div>
                         @endif
                     </div>
-                    <div>
-                        @if ($item->status === 'failed')
-                            <form action="{{ route('clipper.uploads.retry', $item->id) }}" method="POST">
+                    <div class="flex items-center gap-2">
+                        @if ($item->status === 'queued')
+                            <form action="{{ route('clipper.uploads.publish', $item->id) }}" method="POST" class="inline">
+                                @csrf
+                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-pink-600 hover:bg-pink-500 text-white text-xs font-semibold shadow-lg shadow-pink-600/30 transition flex items-center gap-1">
+                                    <span>🚀</span>
+                                    <span>Publish to YouTube</span>
+                                </button>
+                            </form>
+                        @elseif ($item->status === 'failed')
+                            <form action="{{ route('clipper.uploads.retry', $item->id) }}" method="POST" class="inline">
                                 @csrf
                                 <button type="submit" class="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold border border-zinc-700">
                                     Retry Upload
                                 </button>
                             </form>
+                        @elseif ($item->status === 'published' && $item->youtube_url)
+                            <a href="{{ $item->youtube_url }}" target="_blank" class="px-3 py-1.5 rounded-lg bg-emerald-950 text-emerald-300 border border-emerald-800 text-xs font-semibold hover:bg-emerald-900 transition flex items-center gap-1">
+                                <span>▶️</span>
+                                <span>Watch Short</span>
+                            </a>
                         @endif
                     </div>
                 </div>

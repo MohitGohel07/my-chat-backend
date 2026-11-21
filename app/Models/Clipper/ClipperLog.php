@@ -41,3 +41,4 @@ class ClipperLog extends Model
         ]);
     }
 }
+

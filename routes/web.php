@@ -55,6 +55,7 @@ Route::prefix('clipper')->name('clipper.')->group(function () {
         Route::prefix('uploads')->name('uploads.')->group(function () {
             Route::get('/', [UploadQueueController::class, 'index'])->name('index');
             Route::post('{id}/retry', [UploadQueueController::class, 'retry'])->name('retry');
+            Route::post('{id}/publish', [UploadQueueController::class, 'publishNow'])->name('publish');
         });
 
         // YouTube Settings & OAuth
@@ -68,6 +69,7 @@ Route::prefix('clipper')->name('clipper.')->group(function () {
 
         // Health & Telemetry
         Route::get('health', [HealthController::class, 'index'])->name('health.index');
+        Route::post('health/test-ping', [HealthController::class, 'testPing'])->name('health.testPing');
 
         // General System Logs
         Route::get('logs', [StreamLogController::class, 'index'])->name('logs.index');

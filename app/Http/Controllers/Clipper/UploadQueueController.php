@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Clipper;
 use App\Http\Controllers\Controller;
 use App\Models\Clipper\ClipperSetting;
 use App\Models\Clipper\ClipperUpload;
+use App\Services\Clipper\YouTubePublisher;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -43,5 +44,20 @@ class UploadQueueController extends Controller
         $upload->save();
 
         return back()->with('status', 'Upload task requeued for publishing.');
+    }
+
+    /**
+     * Instantly trigger upload processing for an item.
+     */
+    public function publishNow(string $id, YouTubePublisher $publisher): RedirectResponse
+    {
+        $upload = ClipperUpload::findOrFail($id);
+        $success = $publisher->publish($upload);
+
+        if ($success) {
+            return back()->with('status', '🎉 Successfully published to YouTube Shorts!');
+        }
+
+        return back()->with('status', 'Upload processed: ' . ($upload->error_message ?? 'Check System Logs for details.'));
     }
 }
