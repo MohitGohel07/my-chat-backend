@@ -47,7 +47,15 @@ class WorkerCallbackController extends Controller
      */
     public function activeStreams(Request $request): JsonResponse
     {
-        $streams = ClipperStream::where('status', 'monitoring')->get();
+        $streams = ClipperStream::where('status', 'monitoring')->get()->map(function ($stream) {
+            $triggerKey = 'trigger_capture_' . $stream->id;
+            $isTriggered = (bool) ClipperSetting::get($triggerKey, false);
+            if ($isTriggered) {
+                ClipperSetting::forget($triggerKey);
+            }
+            $stream->trigger_instant_capture = $isTriggered;
+            return $stream;
+        });
 
         return response()->json([
             'streams' => $streams,
@@ -78,6 +86,19 @@ class WorkerCallbackController extends Controller
 
         $stream = ClipperStream::findOrFail($data['stream_id']);
 
+        // Handle physical video file uploaded by Worker
+        $videoPath = $data['video_path'] ?? null;
+        if ($request->hasFile('video')) {
+            $uploaded = $request->file('video');
+            $filename = 'clip_' . $stream->id . '_' . time() . '.mp4';
+            $clipsDir = public_path('clips');
+            if (! is_dir($clipsDir)) {
+                @mkdir($clipsDir, 0755, true);
+            }
+            $uploaded->move($clipsDir, $filename);
+            $videoPath = 'clips/' . $filename;
+        }
+
         // 1. Create or link to session
         $session = ClipperSession::create([
             'stream_id' => $stream->id,
@@ -101,7 +122,7 @@ class WorkerCallbackController extends Controller
             'status' => 'clipped',
         ]);
 
-        // 3. Create clip record
+        // 3. Create clip record with actual dynamic video path
         $clip = ClipperClip::create([
             'stream_id' => $stream->id,
             'session_id' => $session->id,
@@ -111,19 +132,19 @@ class WorkerCallbackController extends Controller
             'tags' => $data['tags'] ?? ['GTAVI', 'Shorts', 'Gaming'],
             'duration' => $data['duration'],
             'aspect_ratio' => $data['aspect_ratio'] ?? '9:16',
-            'video_path' => $data['video_path'] ?? null,
+            'video_path' => $videoPath,
             'thumbnail_path' => $data['thumbnail_path'] ?? null,
             'captions_path' => $data['captions_path'] ?? null,
             'storage_disk' => config('clipper.storage_disk', 'local'),
             'score' => $data['score'],
             'status' => 'ready',
             'approval_status' => $stream->require_approval ? 'pending' : 'approved',
-            'file_size' => $data['file_size'] ?? null,
+            'file_size' => $data['file_size'] ?? ($videoPath && file_exists(public_path($videoPath)) ? filesize(public_path($videoPath)) : null),
         ]);
 
         ClipperLog::record(
             'success',
-            "Clip created by Worker: \"{$clip->title}\" (Duration: {$clip->duration}s, Score: {$clip->score}/100)",
+            "Real clip cut from livestream: \"{$clip->title}\" (Duration: {$clip->duration}s, Path: {$clip->video_path})",
             $stream->id
         );
 

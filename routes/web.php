@@ -45,6 +45,7 @@ Route::prefix('clipper')->name('clipper.')->group(function () {
         // Clips Library
         Route::prefix('clips')->name('clips.')->group(function () {
             Route::get('/', [ClipController::class, 'index'])->name('index');
+            Route::post('clear-static', [ClipController::class, 'clearStatic'])->name('clearStatic');
             Route::get('{id}', [ClipController::class, 'show'])->name('show');
             Route::put('{id}', [ClipController::class, 'update'])->name('update');
             Route::delete('{id}', [ClipController::class, 'destroy'])->name('destroy');

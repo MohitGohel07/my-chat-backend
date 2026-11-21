@@ -111,7 +111,7 @@ class ClipperAdminScaffoldTest extends TestCase
 
         // Clips Library & Show
         $this->actingAs($admin)->get('/clipper/clips')->assertStatus(200)->assertSee('Clips Library');
-        $this->actingAs($admin)->get('/clipper/clips/' . $clip->id)->assertStatus(200)->assertSee('9:16 Vertical Video');
+        $this->actingAs($admin)->get('/clipper/clips/' . $clip->id)->assertStatus(200)->assertSee('Metadata (Title');
 
         // Upload Queue
         $this->actingAs($admin)->get('/clipper/uploads')->assertStatus(200)->assertSee('Upload Queue');
@@ -156,10 +156,10 @@ class ClipperAdminScaffoldTest extends TestCase
             ->assertStatus(200)
             ->assertSee('Live GTA VI Stream');
 
-        // Test capture highlight
+        // Test capture highlight trigger
         $captureResponse = $this->actingAs($admin)->post('/clipper/streams/' . $stream->id . '/capture-highlight');
         $captureResponse->assertRedirect('/clipper/clips');
-        $this->assertDatabaseHas('clipper_clips', ['stream_id' => $stream->id]);
+        $this->assertEquals('1', (string) \App\Models\Clipper\ClipperSetting::get('trigger_capture_' . $stream->id));
         $this->assertDatabaseHas('clipper_logs', ['stream_id' => $stream->id]);
 
         // Toggle monitoring stop

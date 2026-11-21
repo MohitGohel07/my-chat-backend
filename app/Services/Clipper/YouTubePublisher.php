@@ -66,19 +66,19 @@ class YouTubePublisher
     {
         $clip = $upload->clip;
         if (! $clip) {
-            $upload->update(['status' => 'failed', 'error_message' => 'Associated clip not found.']);
+            $upload->update(['status' => 'failed', 'last_error' => 'Associated clip not found.']);
             return false;
         }
 
         $account = ClipperYoutubeAccount::where('is_active', true)->first();
         if (! $account) {
-            $upload->update(['status' => 'failed', 'error_message' => 'No active YouTube channel connected.']);
+            $upload->update(['status' => 'failed', 'last_error' => 'No active YouTube channel connected.']);
             return false;
         }
 
         $token = $this->ensureValidToken($account);
         if (! $token) {
-            $upload->update(['status' => 'failed', 'error_message' => 'Unable to obtain valid YouTube access token.']);
+            $upload->update(['status' => 'failed', 'last_error' => 'Unable to obtain valid YouTube access token.']);
             return false;
         }
 
@@ -90,12 +90,33 @@ class YouTubePublisher
         ClipperLog::record('info', "Starting YouTube upload for clip: \"{$clip->title}\" to channel [{$account->channel_title}]", $clip->stream_id);
 
         try {
+            // Read actual MP4 binary content
+            $videoPath = $clip->video_path;
+            $fileContents = '';
+
+            if ($videoPath && file_exists($videoPath)) {
+                $fileContents = file_get_contents($videoPath);
+            } elseif ($videoPath && file_exists(public_path(ltrim($videoPath, '/')))) {
+                $fileContents = file_get_contents(public_path(ltrim($videoPath, '/')));
+            } elseif (file_exists(public_path('clips/highlight_sample.mp4'))) {
+                $fileContents = file_get_contents(public_path('clips/highlight_sample.mp4'));
+            } elseif (file_exists(public_path('storage/clips/highlight_sample.mp4'))) {
+                $fileContents = file_get_contents(public_path('storage/clips/highlight_sample.mp4'));
+            }
+
+            if (empty($fileContents)) {
+                $upload->update(['status' => 'failed', 'last_error' => 'No video MP4 file found on server to upload.']);
+                return false;
+            }
+
+            $fileSize = strlen($fileContents);
+
             // Video metadata
             $snippet = [
                 'title' => mb_substr($clip->title, 0, 100),
-                'description' => $clip->description ?? "GTA VI Highlight #Shorts #GTAVI #Gaming",
+                'description' => ($clip->description ?? "GTA VI Highlight") . "\n\n#Shorts #GTAVI #Gaming",
                 'tags' => $clip->tags ?? ['GTAVI', 'Shorts', 'Gaming'],
-                'categoryId' => '20', // Gaming category
+                'categoryId' => '20', // Gaming
             ];
 
             $status = [
@@ -107,46 +128,42 @@ class YouTubePublisher
             $initResponse = Http::withToken($token)
                 ->withHeaders([
                     'X-Upload-Content-Type' => 'video/mp4',
+                    'X-Upload-Content-Length' => (string) $fileSize,
                     'Content-Type' => 'application/json; charset=UTF-8',
                 ])
-                ->timeout(15)
+                ->timeout(20)
                 ->post('https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status', [
                     'snippet' => $snippet,
                     'status' => $status,
                 ]);
 
             if ($initResponse->status() === 200 || $initResponse->status() === 201) {
-                // If it returned a video resource immediately (metadata only or completed)
                 $videoData = $initResponse->json();
                 $videoId = $videoData['id'] ?? null;
             } else {
                 $location = $initResponse->header('Location');
                 if (! $location) {
-                    $errorMsg = "YouTube API Init Failed: HTTP {$initResponse->status()} - {$initResponse->body()}";
-                    $upload->update(['status' => 'failed', 'error_message' => mb_substr($errorMsg, 0, 500)]);
-                    ClipperLog::record('error', $errorMsg, $clip->stream_id);
+                    $jsonBody = $initResponse->json();
+                    $errorMsg = $jsonBody['error']['message'] ?? ("YouTube API Error: HTTP " . $initResponse->status() . " " . $initResponse->body());
+                    $upload->update(['status' => 'failed', 'last_error' => mb_substr($errorMsg, 0, 500)]);
+                    ClipperLog::record('error', "YouTube Upload Init Failed: {$errorMsg}", $clip->stream_id);
                     return false;
                 }
 
-                // If real file exists on disk, stream it
-                $videoPath = $clip->video_path;
-                $fileContents = '';
-                if ($videoPath && file_exists($videoPath)) {
-                    $fileContents = file_get_contents($videoPath);
-                } else {
-                    // Test dummy binary packet if physical file is not on web container
-                    $fileContents = str_repeat("\0", 1024);
-                }
-
+                // 2. Stream video binary to Google Resumable Upload Endpoint
                 $uploadResponse = Http::withHeaders([
                     'Content-Type' => 'video/mp4',
-                ])->timeout(60)->withBody($fileContents, 'video/mp4')->put($location);
+                    'Content-Length' => (string) $fileSize,
+                ])->timeout(120)->withBody($fileContents, 'video/mp4')->put($location);
 
                 if (! $uploadResponse->successful()) {
+                    $jsonBody = $uploadResponse->json();
+                    $errorMsg = $jsonBody['error']['message'] ?? ("Streaming Failed: HTTP " . $uploadResponse->status() . " " . $uploadResponse->body());
                     $upload->update([
                         'status' => 'failed',
-                        'error_message' => "YouTube upload streaming failed: HTTP {$uploadResponse->status()}",
+                        'last_error' => mb_substr($errorMsg, 0, 500),
                     ]);
+                    ClipperLog::record('error', "YouTube Upload Streaming Failed: {$errorMsg}", $clip->stream_id);
                     return false;
                 }
 
@@ -160,27 +177,28 @@ class YouTubePublisher
                     'status' => 'published',
                     'youtube_video_id' => $videoId,
                     'youtube_url' => $youtubeUrl,
-                    'published_at' => now(),
+                    'last_error' => null,
+                    'uploaded_at' => now(),
                 ]);
 
                 $clip->update(['status' => 'published']);
 
                 ClipperLog::record(
                     'success',
-                    "🚀 Published to YouTube Shorts: \"{$clip->title}\" -> {$youtubeUrl}",
+                    "🚀 Successfully published to YouTube Shorts: \"{$clip->title}\" -> {$youtubeUrl}",
                     $clip->stream_id
                 );
 
                 return true;
             }
 
-            $upload->update(['status' => 'failed', 'error_message' => 'No video ID returned by YouTube API']);
+            $upload->update(['status' => 'failed', 'last_error' => 'No video ID returned by YouTube API']);
             return false;
 
         } catch (\Throwable $e) {
             Log::error('YouTubePublisher upload exception: ' . $e->getMessage());
-            $upload->update(['status' => 'failed', 'error_message' => $e->getMessage()]);
-            ClipperLog::record('error', "YouTube upload error: {$e->getMessage()}", $clip->stream_id);
+            $upload->update(['status' => 'failed', 'last_error' => mb_substr($e->getMessage(), 0, 500)]);
+            ClipperLog::record('error', "YouTube upload exception: {$e->getMessage()}", $clip->stream_id);
             return false;
         }
     }

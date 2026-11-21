@@ -25,16 +25,16 @@
         <!-- Left: 9:16 Video Player Card -->
         <div class="md:col-span-5 flex flex-col items-center">
             <div class="w-full max-w-[280px] aspect-[9/16] bg-zinc-950 rounded-xl border border-zinc-800 relative overflow-hidden flex flex-col items-center justify-center shadow-2xl">
-                @if ($clip->video_path && file_exists(public_path($clip->video_path)))
-                    <video src="{{ asset($clip->video_path) }}" controls class="w-full h-full object-cover"></video>
-                @else
-                    <div class="text-center p-4">
-                        <div class="text-4xl mb-2">🎬</div>
-                        <div class="text-xs font-semibold text-zinc-300">9:16 Vertical Video</div>
-                        <div class="text-[11px] text-zinc-500 mt-1">1080x1920 MP4 with Captions</div>
-                    </div>
-                @endif
-                <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between text-[11px] bg-black/60 backdrop-blur-sm px-2.5 py-1.5 rounded-lg border border-zinc-700/50">
+                @php
+                    $rawPath = $clip->video_path ?: 'clips/sample_gtavi_short.mp4';
+                    $videoUrl = str_starts_with($rawPath, 'http') ? $rawPath : asset('/' . ltrim($rawPath, '/'));
+                @endphp
+                <video src="{{ $videoUrl }}"
+                       controls
+                       playsinline
+                       autoplay
+                       class="w-full h-full object-cover bg-black"></video>
+                <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between text-[11px] bg-black/60 backdrop-blur-sm px-2.5 py-1.5 rounded-lg border border-zinc-700/50 pointer-events-none">
                     <span class="text-zinc-300">⏱️ {{ $clip->duration }}s</span>
                     <span class="text-pink-400 font-bold">Score: {{ $clip->score }}/100</span>
                 </div>

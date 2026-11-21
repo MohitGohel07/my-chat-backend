@@ -107,4 +107,17 @@ class ClipController extends Controller
 
         return redirect()->route('clipper.clips.index')->with('status', "Clip \"{$title}\" removed.");
     }
+
+    /**
+     * Remove all static placeholder clips.
+     */
+    public function clearStatic(): RedirectResponse
+    {
+        $deleted = ClipperClip::where('video_path', 'like', '%sample%')
+            ->orWhereNull('video_path')
+            ->delete();
+
+        return redirect()->route('clipper.clips.index')
+            ->with('status', "🧹 Removed {$deleted} static placeholder clips. Only real livestream cuts will appear!");
+    }
 }

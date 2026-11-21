@@ -7,6 +7,7 @@ use App\Models\Clipper\ClipperClip;
 use App\Models\Clipper\ClipperHighlight;
 use App\Models\Clipper\ClipperLog;
 use App\Models\Clipper\ClipperSession;
+use App\Models\Clipper\ClipperSetting;
 use App\Models\Clipper\ClipperStream;
 use App\Models\Clipper\ClipperUpload;
 use App\Models\Clipper\ClipperYoutubeAccount;
@@ -147,86 +148,16 @@ class StreamController extends Controller
     {
         $stream = ClipperStream::findOrFail($id);
 
-        // Record log steps so user can see every phase in System Logs
-        ClipperLog::record('info', "Scanning livestream audio/video buffer for highlight trigger points...", $stream->id);
+        // Remove any old static sample clips
+        ClipperClip::where('video_path', 'like', '%sample%')->orWhereNull('video_path')->delete();
 
-        $session = ClipperSession::create([
-            'stream_id' => $stream->id,
-            'worker_id' => 'worker-capture-01',
-            'status' => 'completed',
-            'started_at' => now()->subMinutes(5),
-            'ended_at' => now(),
-            'bytes_captured' => 84210000,
-            'highlights_count' => 1,
-            'clips_count' => 1,
-        ]);
+        // Signal online Railway Worker to cut the real live stream
+        ClipperSetting::set('trigger_capture_' . $stream->id, true);
 
-        $score = rand(88, 98) + (rand(0, 9) / 10);
-        $highlight = ClipperHighlight::create([
-            'stream_id' => $stream->id,
-            'session_id' => $session->id,
-            'start_seconds' => rand(40, 180),
-            'end_seconds' => rand(200, 240),
-            'score' => $score,
-            'signals' => [
-                'audio_energy' => 0.94,
-                'scene_cuts' => 0.88,
-                'whisper_excitement' => 0.95,
-            ],
-            'status' => 'clipped',
-        ]);
-
-        ClipperLog::record(
-            'success',
-            "Highlight detected at " . gmdate('i:s', (int) $highlight->start_seconds) . "! Audio energy spike + rapid scene changes. Score: {$score}/100",
-            $stream->id
-        );
-
-        $titles = [
-            'INSANE High-Speed Police Chase in Vice City! 🚨 #GTAVI #Shorts',
-            'UNREAL Helicopter Rooftop Escape in GTA VI! 🚁 #GTA6',
-            'CRAZIEST Wanted Level 5 Action in Vice City! 🔥 #Shorts',
-            'Unbelievable Supercar Stunt Jump in GTA VI! 🏎️💨 #Gaming',
-        ];
-        $title = $titles[array_rand($titles)];
-
-        ClipperLog::record('info', "FFmpeg rendering 1080x1920 (9:16) vertical crop with auto-captions...", $stream->id);
-
-        $clip = ClipperClip::create([
-            'stream_id' => $stream->id,
-            'session_id' => $session->id,
-            'highlight_id' => $highlight->id,
-            'title' => $title,
-            'description' => "Insane moments captured live from GTA VI gameplay! #GTAVI #GTA6 #Shorts #Gaming #RockstarGames",
-            'tags' => ['GTAVI', 'GTA6', 'Shorts', 'Gaming', 'ViceCity'],
-            'duration' => rand(25, 45),
-            'aspect_ratio' => '9:16',
-            'video_path' => 'clips/sample_gtavi_short.mp4',
-            'thumbnail_path' => 'thumbnails/sample_gtavi_thumb.jpg',
-            'captions_path' => 'captions/sample_gtavi.vtt',
-            'storage_disk' => 'local',
-            'score' => $score,
-            'status' => 'ready',
-            'approval_status' => $stream->require_approval ? 'pending' : 'approved',
-            'file_size' => 15200000,
-        ]);
-
-        ClipperLog::record('success', "Clip \"{$clip->title}\" generated and saved to Clips Library.", $stream->id);
-
-        // Check if YouTube channel connected and auto-upload enabled
-        $channel = ClipperYoutubeAccount::where('is_active', true)->first();
-        if ($channel && $clip->approval_status === 'approved') {
-            ClipperUpload::create([
-                'clip_id' => $clip->id,
-                'status' => 'queued',
-                'privacy' => $stream->upload_privacy ?? 'public',
-                'attempts' => 0,
-            ]);
-            ClipperLog::record('info', "Auto-upload dispatched to YouTube queue for channel [{$channel->channel_title}].", $stream->id);
-        }
+        ClipperLog::record('info', "⚡ Instant capture command sent to Dedicated Video Worker for stream: {$stream->name}", $stream->id);
 
         return redirect()->route('clipper.clips.index')
-            ->with('status', "Highlight clip captured and created! View it below in your Clips Library.");
+            ->with('status', "⚡ Live capture command dispatched! The Dedicated Video Worker is cutting the genuine livestream into a 9:16 vertical Short...");
     }
 
     /**

@@ -57,7 +57,9 @@
                             @endif
                         </div>
                         @if ($item->last_error)
-                            <div class="text-xs text-rose-400 font-mono mt-1">{{ $item->last_error }}</div>
+                            <div class="mt-2 p-2 rounded bg-rose-950/60 border border-rose-800/80 text-xs text-rose-300 font-mono">
+                                ⚠️ {{ $item->last_error }}
+                            </div>
                         @endif
                     </div>
                     <div class="flex items-center gap-2">

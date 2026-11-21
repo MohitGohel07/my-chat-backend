@@ -10,6 +10,14 @@
                 Review, approve, and manage rendered 9:16 vertical highlight shorts
             </p>
         </div>
+        <div class="flex items-center gap-2">
+            <form action="{{ route('clipper.clips.clearStatic') }}" method="POST" class="inline" onsubmit="return confirm('Remove all static sample placeholders? Only real stream cuts will be kept.');">
+                @csrf
+                <button type="submit" class="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold border border-zinc-700 transition">
+                    🧹 Remove Static Sample Clips
+                </button>
+            </form>
+        </div>
     </div>
 
     <!-- Filter Tabs (Horizontal scroll on mobile) -->
@@ -60,12 +68,20 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             @foreach ($clips as $clip)
                 <div class="gta-card flex flex-col justify-between space-y-3">
-                    <div class="aspect-[9/16] max-h-72 w-full bg-zinc-900 rounded-lg flex items-center justify-center relative overflow-hidden border border-zinc-800">
-                        <span class="text-3xl text-zinc-600">▶️</span>
-                        <div class="absolute top-2 right-2">
+                    <div class="aspect-[9/16] max-h-72 w-full bg-zinc-950 rounded-lg relative overflow-hidden border border-zinc-800">
+                        @php
+                            $rawPath = $clip->video_path ?: 'clips/sample_gtavi_short.mp4';
+                            $videoUrl = str_starts_with($rawPath, 'http') ? $rawPath : asset('/' . ltrim($rawPath, '/'));
+                        @endphp
+                        <video src="{{ $videoUrl }}"
+                               controls
+                               playsinline
+                               preload="metadata"
+                               class="w-full h-full object-cover rounded-lg bg-black"></video>
+                        <div class="absolute top-2 right-2 pointer-events-none">
                             <span class="badge badge-purple">{{ $clip->duration }}s</span>
                         </div>
-                        <div class="absolute bottom-2 left-2 flex items-center gap-1.5">
+                        <div class="absolute bottom-2 left-2 flex items-center gap-1.5 pointer-events-none">
                             <span class="badge badge-amber">Score: {{ $clip->score }}</span>
                             <span class="badge {{ $clip->approval_status === 'approved' ? 'badge-green' : 'badge-gray' }}">
                                 {{ ucfirst($clip->approval_status) }}

@@ -58,6 +58,6 @@ class UploadQueueController extends Controller
             return back()->with('status', '🎉 Successfully published to YouTube Shorts!');
         }
 
-        return back()->with('status', 'Upload processed: ' . ($upload->error_message ?? 'Check System Logs for details.'));
+        return back()->with('error', 'Upload failed: ' . ($upload->last_error ?? 'Check System Logs for details.'));
     }
 }
