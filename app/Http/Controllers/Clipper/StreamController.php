@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Clipper;
 
 use App\Http\Controllers\Controller;
+use App\Models\Clipper\ClipperStream;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -14,7 +15,7 @@ class StreamController extends Controller
      */
     public function index(): View
     {
-        $streams = []; // Scaffolding empty list for Phase 1
+        $streams = ClipperStream::latest()->get();
 
         return view('clipper.streams.index', compact('streams'));
     }
@@ -52,15 +53,42 @@ class StreamController extends Controller
             'clip_min_seconds' => ['required', 'integer', 'min:5', 'max:300'],
             'clip_max_seconds' => ['required', 'integer', 'min:10', 'max:600'],
             'highlight_sensitivity' => ['required', 'in:low,medium,high'],
-            'vertical_enabled' => ['boolean'],
-            'captions_enabled' => ['boolean'],
-            'auto_upload_enabled' => ['boolean'],
-            'require_approval' => ['boolean'],
+            'vertical_enabled' => ['nullable'],
+            'captions_enabled' => ['nullable'],
+            'auto_upload_enabled' => ['nullable'],
+            'require_approval' => ['nullable'],
             'upload_privacy' => ['required', 'in:private,unlisted,public'],
         ]);
 
+        $url = strtolower($validated['source_url']);
+        $platform = 'youtube';
+        if (str_contains($url, 'twitch.tv')) {
+            $platform = 'twitch';
+        } elseif (str_contains($url, 'kick.com')) {
+            $platform = 'kick';
+        }
+
+        $stream = ClipperStream::create([
+            'name' => $validated['name'],
+            'source_url' => $validated['source_url'],
+            'source_platform' => $platform,
+            'status' => 'idle',
+            'enabled' => true,
+            'clip_min_seconds' => (int) $validated['clip_min_seconds'],
+            'clip_max_seconds' => (int) $validated['clip_max_seconds'],
+            'pre_roll_seconds' => config('clipper.pre_roll_seconds', 10),
+            'post_roll_seconds' => config('clipper.post_roll_seconds', 15),
+            'highlight_sensitivity' => $validated['highlight_sensitivity'],
+            'vertical_enabled' => $request->boolean('vertical_enabled'),
+            'captions_enabled' => $request->boolean('captions_enabled'),
+            'auto_upload_enabled' => $request->boolean('auto_upload_enabled'),
+            'require_approval' => $request->boolean('require_approval'),
+            'upload_privacy' => $validated['upload_privacy'],
+            'max_clips_per_day' => config('clipper.max_clips_per_day', 5),
+        ]);
+
         return redirect()->route('clipper.streams.index')
-            ->with('status', 'Stream configuration saved successfully.');
+            ->with('status', "Stream \"{$stream->name}\" added and ready for monitoring!");
     }
 
     /**
@@ -68,25 +96,7 @@ class StreamController extends Controller
      */
     public function show(string $id): View
     {
-        $stream = [
-            'id' => $id,
-            'name' => 'GTA VI Official Launch Showcase',
-            'source_url' => 'https://www.youtube.com/watch?v=mock_gtavi',
-            'source_platform' => 'youtube',
-            'status' => 'idle',
-            'clip_min_seconds' => 20,
-            'clip_max_seconds' => 60,
-            'pre_roll_seconds' => 10,
-            'post_roll_seconds' => 15,
-            'highlight_sensitivity' => 'medium',
-            'vertical_enabled' => true,
-            'captions_enabled' => true,
-            'auto_upload_enabled' => false,
-            'require_approval' => true,
-            'upload_privacy' => 'private',
-            'max_clips_per_day' => 5,
-            'created_at' => now()->toFormattedDateString(),
-        ];
+        $stream = ClipperStream::findOrFail($id);
 
         return view('clipper.streams.show', compact('stream'));
     }
@@ -96,9 +106,34 @@ class StreamController extends Controller
      */
     public function toggle(Request $request, string $id): RedirectResponse
     {
+        $stream = ClipperStream::findOrFail($id);
         $action = $request->input('action', 'start');
 
-        return back()->with('status', "Stream monitoring has been set to {$action}.");
+        if ($action === 'start') {
+            $stream->status = 'monitoring';
+            $stream->monitoring_started_at = now();
+            $stream->save();
+            $msg = "Started monitoring stream: {$stream->name}";
+        } else {
+            $stream->status = 'idle';
+            $stream->monitoring_stopped_at = now();
+            $stream->save();
+            $msg = "Stopped monitoring stream: {$stream->name}";
+        }
+
+        return back()->with('status', $msg);
+    }
+
+    /**
+     * Delete a stream configuration.
+     */
+    public function destroy(string $id): RedirectResponse
+    {
+        $stream = ClipperStream::findOrFail($id);
+        $name = $stream->name;
+        $stream->delete();
+
+        return redirect()->route('clipper.streams.index')
+            ->with('status', "Stream \"{$name}\" removed.");
     }
 }
-

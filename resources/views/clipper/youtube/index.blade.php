@@ -19,11 +19,18 @@
                 </div>
                 <div>
                     <div class="text-xs uppercase tracking-wider font-semibold text-zinc-400">Target Channel</div>
-                    <div class="text-base font-bold text-white">
-                        {{ $status['channel_name'] ?? 'No YouTube Channel Connected' }}
+                    <div class="text-base font-bold text-white flex items-center gap-2">
+                        <span>{{ $status['channel_name'] ?? 'No YouTube Channel Connected' }}</span>
+                        @if ($status['connected'])
+                            <span class="badge badge-green text-[10px]">Connected</span>
+                        @endif
                     </div>
                     <div class="text-xs text-zinc-400">
-                        {{ $status['connected'] ? 'Authorized via Google OAuth 2.0' : 'Connect your account to enable direct uploads' }}
+                        @if ($status['connected'])
+                            Channel ID: <span class="font-mono text-zinc-300">{{ $status['channel_id'] ?? '—' }}</span>
+                        @else
+                            Connect your account to enable direct uploads
+                        @endif
                     </div>
                 </div>
             </div>
@@ -37,9 +44,15 @@
                         </button>
                     </form>
                 @else
-                    <button type="button" class="gta-btn-primary text-xs" {{ ! $status['client_id_configured'] ? 'disabled title=Configure_OAuth_credentials_first style=opacity:0.6;cursor:not-allowed;' : '' }}>
-                        🔗 Connect YouTube Account
-                    </button>
+                    @if ($status['client_id_configured'])
+                        <a href="{{ route('clipper.youtube.connect') }}" class="gta-btn-primary text-xs">
+                            🔗 Connect YouTube Account
+                        </a>
+                    @else
+                        <button type="button" class="gta-btn-primary text-xs" disabled title="Configure OAuth credentials in environment first" style="opacity:0.6;cursor:not-allowed;">
+                            🔗 Connect YouTube Account
+                        </button>
+                    @endif
                 @endif
             </div>
         </div>
@@ -106,4 +119,3 @@
 
 </div>
 @endsection
-

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Clipper\ClipperStream;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -82,10 +83,22 @@ class ClipperAdminScaffoldTest extends TestCase
     {
         $admin = User::factory()->create(['is_admin' => true]);
 
+        $stream = ClipperStream::create([
+            'name' => 'GTA VI Launch Gameplay',
+            'source_url' => 'https://www.youtube.com/watch?v=mock_video',
+            'source_platform' => 'youtube',
+            'clip_min_seconds' => 20,
+            'clip_max_seconds' => 60,
+            'highlight_sensitivity' => 'medium',
+            'vertical_enabled' => true,
+            'captions_enabled' => true,
+            'upload_privacy' => 'private',
+        ]);
+
         // Streams Index & Create & Show
         $this->actingAs($admin)->get('/clipper/streams')->assertStatus(200)->assertSee('Livestreams');
         $this->actingAs($admin)->get('/clipper/streams/create')->assertStatus(200)->assertSee('Configure New Livestream');
-        $this->actingAs($admin)->get('/clipper/streams/1')->assertStatus(200)->assertSee('Clipping Parameters');
+        $this->actingAs($admin)->get('/clipper/streams/' . $stream->id)->assertStatus(200)->assertSee('Clipping Parameters');
 
         // Clips Library & Show
         $this->actingAs($admin)->get('/clipper/clips')->assertStatus(200)->assertSee('Clips Library');
@@ -102,6 +115,59 @@ class ClipperAdminScaffoldTest extends TestCase
 
         // Logs
         $this->actingAs($admin)->get('/clipper/logs')->assertStatus(200)->assertSee('Stream Logs');
+    }
+
+    public function test_admin_can_create_and_manage_stream(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+
+        $response = $this->actingAs($admin)->post('/clipper/streams', [
+            'name' => 'Live GTA VI Stream',
+            'source_url' => 'https://www.youtube.com/watch?v=test_stream_123',
+            'clip_min_seconds' => 25,
+            'clip_max_seconds' => 55,
+            'highlight_sensitivity' => 'high',
+            'vertical_enabled' => '1',
+            'captions_enabled' => '1',
+            'upload_privacy' => 'private',
+        ]);
+
+        $response->assertRedirect('/clipper/streams');
+        $this->assertDatabaseHas('clipper_streams', ['name' => 'Live GTA VI Stream']);
+
+        $stream = ClipperStream::where('name', 'Live GTA VI Stream')->first();
+
+        // Toggle monitoring start
+        $this->actingAs($admin)->post('/clipper/streams/' . $stream->id . '/toggle', ['action' => 'start'])
+            ->assertSessionHas('status');
+        $this->assertEquals('monitoring', $stream->fresh()->status);
+
+        // List shows stream
+        $this->actingAs($admin)->get('/clipper/streams')
+            ->assertStatus(200)
+            ->assertSee('Live GTA VI Stream');
+
+        // Toggle monitoring stop
+        $this->actingAs($admin)->post('/clipper/streams/' . $stream->id . '/toggle', ['action' => 'stop'])
+            ->assertSessionHas('status');
+        $this->assertEquals('idle', $stream->fresh()->status);
+
+        // Delete stream
+        $this->actingAs($admin)->delete('/clipper/streams/' . $stream->id)
+            ->assertRedirect('/clipper/streams');
+        $this->assertDatabaseMissing('clipper_streams', ['id' => $stream->id]);
+    }
+
+    public function test_admin_can_initiate_youtube_oauth(): void
+    {
+        config(['clipper.youtube.client_id' => 'test-google-client-id.apps.googleusercontent.com']);
+        $admin = User::factory()->create(['is_admin' => true]);
+
+        $response = $this->actingAs($admin)->get('/clipper/youtube/connect');
+
+        $response->assertRedirect();
+        $this->assertStringContainsString('accounts.google.com/o/oauth2/v2/auth', $response->headers->get('Location'));
+        $this->assertStringContainsString('test-google-client-id', $response->headers->get('Location'));
     }
 
     public function test_admin_logout_clears_session(): void

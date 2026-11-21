@@ -9,20 +9,21 @@
                 <span>&larr;</span> Back to Streams
             </a>
             <h1 class="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-                <span>{{ $stream['name'] }}</span>
-                <span class="badge {{ $stream['status'] === 'monitoring' ? 'badge-green' : 'badge-gray' }}">
-                    {{ ucfirst($stream['status']) }}
+                <span>{{ $stream->name }}</span>
+                <span class="badge {{ $stream->status === 'monitoring' ? 'badge-green' : 'badge-gray' }}">
+                    {{ ucfirst($stream->status) }}
                 </span>
+                <span class="badge badge-purple uppercase text-[10px]">{{ $stream->source_platform }}</span>
             </h1>
             <p class="text-xs text-zinc-400 font-mono mt-0.5 truncate max-w-xl">
-                {{ $stream['source_url'] }}
+                {{ $stream->source_url }}
             </p>
         </div>
 
         <div class="flex items-center gap-2">
-            <form action="{{ route('clipper.streams.toggle', $stream['id']) }}" method="POST">
+            <form action="{{ route('clipper.streams.toggle', $stream->id) }}" method="POST">
                 @csrf
-                @if ($stream['status'] === 'monitoring')
+                @if ($stream->status === 'monitoring')
                     <input type="hidden" name="action" value="stop">
                     <button type="submit" class="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs transition">
                         ⏹️ Stop Monitoring
@@ -34,9 +35,18 @@
                     </button>
                 @endif
             </form>
-            <a href="{{ route('clipper.streams.logs', $stream['id']) }}" class="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold border border-zinc-700 transition">
+
+            <a href="{{ route('clipper.streams.logs', $stream->id) }}" class="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold border border-zinc-700 transition">
                 📜 Logs
             </a>
+
+            <form action="{{ route('clipper.streams.destroy', $stream->id) }}" method="POST" onsubmit="return confirm('Remove this stream configuration?');">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="px-3 py-2 rounded-lg bg-rose-950/80 hover:bg-rose-900 text-rose-300 text-xs font-semibold border border-rose-800 transition">
+                    Delete
+                </button>
+            </form>
         </div>
     </div>
 
@@ -47,23 +57,23 @@
             <div class="space-y-2 text-xs">
                 <div class="flex justify-between py-1 border-b border-zinc-800/60">
                     <span class="text-zinc-400">Duration Limits:</span>
-                    <span class="font-semibold text-white">{{ $stream['clip_min_seconds'] }}s – {{ $stream['clip_max_seconds'] }}s</span>
+                    <span class="font-semibold text-white">{{ $stream->clip_min_seconds }}s – {{ $stream->clip_max_seconds }}s</span>
                 </div>
                 <div class="flex justify-between py-1 border-b border-zinc-800/60">
                     <span class="text-zinc-400">Pre / Post Padding:</span>
-                    <span class="font-semibold text-white">+{{ $stream['pre_roll_seconds'] }}s / +{{ $stream['post_roll_seconds'] }}s</span>
+                    <span class="font-semibold text-white">+{{ $stream->pre_roll_seconds }}s / +{{ $stream->post_roll_seconds }}s</span>
                 </div>
                 <div class="flex justify-between py-1 border-b border-zinc-800/60">
                     <span class="text-zinc-400">Highlight Sensitivity:</span>
-                    <span class="font-semibold text-white capitalize">{{ $stream['highlight_sensitivity'] }}</span>
+                    <span class="font-semibold text-white capitalize">{{ $stream->highlight_sensitivity }}</span>
                 </div>
                 <div class="flex justify-between py-1 border-b border-zinc-800/60">
                     <span class="text-zinc-400">Vertical 9:16 Reframe:</span>
-                    <span class="font-semibold text-white">{{ $stream['vertical_enabled'] ? 'Enabled' : 'Disabled' }}</span>
+                    <span class="font-semibold text-white">{{ $stream->vertical_enabled ? 'Enabled' : 'Disabled' }}</span>
                 </div>
                 <div class="flex justify-between py-1">
                     <span class="text-zinc-400">Whisper Captions:</span>
-                    <span class="font-semibold text-white">{{ $stream['captions_enabled'] ? 'Enabled' : 'Disabled' }}</span>
+                    <span class="font-semibold text-white">{{ $stream->captions_enabled ? 'Enabled' : 'Disabled' }}</span>
                 </div>
             </div>
         </div>
@@ -73,23 +83,23 @@
             <div class="space-y-2 text-xs">
                 <div class="flex justify-between py-1 border-b border-zinc-800/60">
                     <span class="text-zinc-400">Require Manual Approval:</span>
-                    <span class="font-semibold text-white">{{ $stream['require_approval'] ? 'Yes' : 'No' }}</span>
+                    <span class="font-semibold text-white">{{ $stream->require_approval ? 'Yes' : 'No' }}</span>
                 </div>
                 <div class="flex justify-between py-1 border-b border-zinc-800/60">
                     <span class="text-zinc-400">Auto-Upload to YouTube:</span>
-                    <span class="font-semibold text-white">{{ $stream['auto_upload_enabled'] ? 'Yes' : 'No' }}</span>
+                    <span class="font-semibold text-white">{{ $stream->auto_upload_enabled ? 'Yes' : 'No' }}</span>
                 </div>
                 <div class="flex justify-between py-1 border-b border-zinc-800/60">
                     <span class="text-zinc-400">Upload Privacy:</span>
-                    <span class="font-semibold text-white capitalize">{{ $stream['upload_privacy'] }}</span>
+                    <span class="font-semibold text-white capitalize">{{ $stream->upload_privacy }}</span>
                 </div>
                 <div class="flex justify-between py-1 border-b border-zinc-800/60">
                     <span class="text-zinc-400">Max Daily Clips:</span>
-                    <span class="font-semibold text-white">{{ $stream['max_clips_per_day'] }}</span>
+                    <span class="font-semibold text-white">{{ $stream->max_clips_per_day }}</span>
                 </div>
                 <div class="flex justify-between py-1">
                     <span class="text-zinc-400">Created:</span>
-                    <span class="font-semibold text-white">{{ $stream['created_at'] }}</span>
+                    <span class="font-semibold text-white">{{ $stream->created_at?->toFormattedDateString() }}</span>
                 </div>
             </div>
         </div>
@@ -97,4 +107,3 @@
 
 </div>
 @endsection
-

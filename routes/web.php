@@ -37,6 +37,7 @@ Route::prefix('clipper')->name('clipper.')->group(function () {
             Route::post('/', [StreamController::class, 'store'])->name('store');
             Route::get('{id}', [StreamController::class, 'show'])->name('show');
             Route::post('{id}/toggle', [StreamController::class, 'toggle'])->name('toggle');
+            Route::delete('{id}', [StreamController::class, 'destroy'])->name('destroy');
             Route::get('{stream}/logs', [StreamLogController::class, 'index'])->name('logs');
         });
 
@@ -56,11 +57,10 @@ Route::prefix('clipper')->name('clipper.')->group(function () {
         // YouTube Settings & OAuth
         Route::prefix('youtube')->name('youtube.')->group(function () {
             Route::get('/', [YouTubeSettingsController::class, 'index'])->name('index');
+            Route::get('connect', [YouTubeSettingsController::class, 'connect'])->name('connect');
             Route::post('/', [YouTubeSettingsController::class, 'update'])->name('update');
             Route::post('disconnect', [YouTubeSettingsController::class, 'disconnect'])->name('disconnect');
-            Route::get('callback', function () {
-                return redirect()->route('clipper.youtube.index')->with('status', 'OAuth callback handled.');
-            })->name('callback');
+            Route::get('callback', [YouTubeSettingsController::class, 'callback'])->name('callback');
         });
 
         // Health & Telemetry
