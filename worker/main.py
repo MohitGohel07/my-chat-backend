@@ -87,7 +87,7 @@ def process_stream_slice(stream):
     """
     stream_id = stream.get("id")
     stream_name = stream.get("name", "GTA VI Live")
-    stream_url = stream.get("url")
+    stream_url = stream.get("source_url") or stream.get("url")
 
     logger.info(f"Checking stream [{stream_id}] '{stream_name}' -> {stream_url}")
 

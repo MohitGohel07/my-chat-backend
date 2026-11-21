@@ -194,4 +194,98 @@ class ClipperAdminScaffoldTest extends TestCase
         $response->assertRedirect('/clipper/login');
         $this->assertGuest();
     }
+
+    public function test_worker_heartbeat_api_records_status_and_telemetry(): void
+    {
+        $response = $this->postJson('/api/clipper/heartbeat', [
+            'worker_id' => 'worker-test-01',
+            'endpoint' => 'cloud-worker.internal',
+            'cpu_usage' => '15.4%',
+            'memory_usage' => '42.1%',
+            'disk_free' => '50 GB',
+            'active_tasks' => 1,
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJson(['status' => 'acknowledged']);
+
+        $this->assertEquals('online', \App\Models\Clipper\ClipperSetting::get('worker_status'));
+    }
+
+    public function test_worker_active_streams_api_returns_monitoring_streams(): void
+    {
+        $activeStream = ClipperStream::create([
+            'name' => 'Active Monitoring Stream',
+            'source_url' => 'https://www.youtube.com/watch?v=active_stream',
+            'source_platform' => 'youtube',
+            'status' => 'monitoring',
+        ]);
+
+        ClipperStream::create([
+            'name' => 'Idle Stream',
+            'source_url' => 'https://www.youtube.com/watch?v=idle_stream',
+            'source_platform' => 'youtube',
+            'status' => 'idle',
+        ]);
+
+        $response = $this->getJson('/api/clipper/streams/active');
+        $response->assertStatus(200);
+        $response->assertJsonCount(1, 'streams');
+        $response->assertJsonFragment(['name' => 'Active Monitoring Stream']);
+    }
+
+    public function test_worker_clip_created_api_creates_records_and_enqueues_upload(): void
+    {
+        $stream = ClipperStream::create([
+            'name' => 'Highlight Source Stream',
+            'source_url' => 'https://www.youtube.com/watch?v=highlight_stream',
+            'source_platform' => 'youtube',
+            'status' => 'monitoring',
+            'require_approval' => false,
+        ]);
+
+        \App\Models\Clipper\ClipperYoutubeAccount::create([
+            'channel_id' => 'UC_TEST_CHANNEL_123',
+            'channel_title' => 'Test Channel',
+            'access_token' => 'mock_token',
+            'is_active' => true,
+        ]);
+
+        $response = $this->postJson('/api/clipper/clip-created', [
+            'stream_id' => $stream->id,
+            'title' => 'EPIC CAR CHASE MOMENT',
+            'description' => 'Test clip description',
+            'duration' => 32.5,
+            'aspect_ratio' => '9:16',
+            'score' => 96.2,
+            'video_path' => '/storage/clips/test_clip.mp4',
+            'thumbnail_path' => '/storage/clips/test_thumb.jpg',
+            'start_seconds' => 45.0,
+            'end_seconds' => 77.5,
+            'file_size' => 12400000,
+        ]);
+
+        $response->assertStatus(201);
+        $response->assertJson(['status' => 'success', 'approval_status' => 'approved']);
+
+        $this->assertDatabaseHas('clipper_clips', [
+            'stream_id' => $stream->id,
+            'title' => 'EPIC CAR CHASE MOMENT',
+        ]);
+
+        $this->assertDatabaseHas('clipper_uploads', [
+            'status' => 'queued',
+        ]);
+    }
+
+    public function test_admin_can_simulate_worker_heartbeat(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+
+        $response = $this->actingAs($admin)->post('/clipper/health/test-ping');
+        $response->assertRedirect();
+        $response->assertSessionHas('status');
+
+        $this->assertEquals('online', \App\Models\Clipper\ClipperSetting::get('worker_status'));
+    }
 }

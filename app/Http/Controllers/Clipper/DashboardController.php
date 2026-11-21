@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Clipper;
 
 use App\Http\Controllers\Controller;
 use App\Models\Clipper\ClipperClip;
+use App\Models\Clipper\ClipperSetting;
 use App\Models\Clipper\ClipperStream;
 use App\Models\Clipper\ClipperUpload;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -16,6 +18,20 @@ class DashboardController extends Controller
      */
     public function index(Request $request): View
     {
+        $workerStatus = ClipperSetting::get('worker_status', 'offline');
+        $workerLastSeen = ClipperSetting::get('worker_last_seen');
+        $lastSeenHuman = null;
+
+        if ($workerLastSeen) {
+            $lastSeenCarbon = Carbon::parse($workerLastSeen);
+            if ($lastSeenCarbon->diffInMinutes(now()) > 3) {
+                $workerStatus = 'offline';
+            }
+            $lastSeenHuman = $lastSeenCarbon->diffForHumans();
+        } else {
+            $workerStatus = 'offline';
+        }
+
         $metrics = [
             'active_monitoring' => ClipperStream::where('status', 'monitoring')->count(),
             'queued' => ClipperStream::where('status', 'idle')->count(),
@@ -26,9 +42,9 @@ class DashboardController extends Controller
             'uploads_completed' => ClipperUpload::where('status', 'published')->count(),
             'failed_tasks' => ClipperClip::where('status', 'failed')->count() + ClipperUpload::where('status', 'failed')->count(),
             'worker_heartbeat' => [
-                'status' => 'offline',
-                'last_seen' => null,
-                'endpoint' => config('clipper.worker_url'),
+                'status' => $workerStatus,
+                'last_seen' => $lastSeenHuman,
+                'endpoint' => ClipperSetting::get('worker_endpoint', config('clipper.worker_url', 'Not configured')),
             ],
         ];
 
