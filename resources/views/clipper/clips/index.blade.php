@@ -36,7 +36,7 @@
         </a>
     </div>
 
-    @if (empty($clips))
+    @if ($clips->isEmpty())
         <div class="gta-card text-center py-12">
             <div class="text-4xl mb-3">🎬</div>
             <h2 class="text-base font-bold text-white mb-1">No Clips in this View</h2>
@@ -51,22 +51,34 @@
                     <div class="aspect-[9/16] max-h-72 w-full bg-zinc-900 rounded-lg flex items-center justify-center relative overflow-hidden border border-zinc-800">
                         <span class="text-3xl text-zinc-600">▶️</span>
                         <div class="absolute top-2 right-2">
-                            <span class="badge badge-purple">{{ $clip['duration'] }}s</span>
+                            <span class="badge badge-purple">{{ $clip->duration }}s</span>
                         </div>
-                        <div class="absolute bottom-2 left-2">
-                            <span class="badge badge-amber">Score: {{ $clip['score'] }}</span>
+                        <div class="absolute bottom-2 left-2 flex items-center gap-1.5">
+                            <span class="badge badge-amber">Score: {{ $clip->score }}</span>
+                            <span class="badge {{ $clip->approval_status === 'approved' ? 'badge-green' : 'badge-gray' }}">
+                                {{ ucfirst($clip->approval_status) }}
+                            </span>
                         </div>
                     </div>
 
                     <div>
-                        <h3 class="font-bold text-sm text-white line-clamp-1">{{ $clip['title'] }}</h3>
-                        <p class="text-xs text-zinc-400 line-clamp-2 mt-1">{{ $clip['description'] }}</p>
+                        <h3 class="font-bold text-sm text-white line-clamp-1">{{ $clip->title }}</h3>
+                        <p class="text-xs text-zinc-400 line-clamp-2 mt-1">{{ $clip->description }}</p>
                     </div>
 
                     <div class="flex items-center justify-between pt-2 border-t border-zinc-800/80">
-                        <a href="{{ route('clipper.clips.show', $clip['id']) }}" class="text-xs text-pink-400 hover:text-pink-300 font-semibold">
+                        <a href="{{ route('clipper.clips.show', $clip->id) }}" class="text-xs text-pink-400 hover:text-pink-300 font-semibold">
                             Preview & Details &rarr;
                         </a>
+                        @if ($clip->approval_status === 'pending')
+                            <form action="{{ route('clipper.clips.approval', $clip->id) }}" method="POST" class="inline">
+                                @csrf
+                                <input type="hidden" name="action" value="approve">
+                                <button type="submit" class="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold transition">
+                                    Approve
+                                </button>
+                            </form>
+                        @endif
                     </div>
                 </div>
             @endforeach
@@ -75,4 +87,3 @@
 
 </div>
 @endsection
-

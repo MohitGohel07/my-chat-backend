@@ -30,7 +30,7 @@
         </div>
     </div>
 
-    @if (empty($queue))
+    @if ($queue->isEmpty())
         <div class="gta-card text-center py-12">
             <div class="text-4xl mb-3">🚀</div>
             <h2 class="text-base font-bold text-white mb-1">Upload Queue is Empty</h2>
@@ -44,21 +44,31 @@
                 <div class="gta-card flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div class="space-y-1">
                         <div class="flex items-center gap-2">
-                            <span class="font-bold text-white text-sm">{{ $item['title'] }}</span>
-                            <span class="badge badge-purple">{{ ucfirst($item['status']) }}</span>
+                            <span class="font-bold text-white text-sm">{{ $item->clip?->title ?? 'Shorts Video #' . $item->id }}</span>
+                            <span class="badge {{ $item->status === 'published' ? 'badge-green' : ($item->status === 'failed' ? 'badge-rose' : 'badge-purple') }}">
+                                {{ ucfirst($item->status) }}
+                            </span>
                         </div>
                         <div class="text-xs text-zinc-400">
-                            Privacy: <span class="capitalize text-zinc-300">{{ $item['privacy'] }}</span> •
-                            Attempts: {{ $item['attempts'] }}
+                            Privacy: <span class="capitalize text-zinc-300">{{ $item->privacy }}</span> •
+                            Attempts: {{ $item->attempts }}
+                            @if ($item->youtube_url)
+                                • <a href="{{ $item->youtube_url }}" target="_blank" class="text-pink-400 hover:underline">View on YouTube &rarr;</a>
+                            @endif
                         </div>
+                        @if ($item->last_error)
+                            <div class="text-xs text-rose-400 font-mono mt-1">{{ $item->last_error }}</div>
+                        @endif
                     </div>
                     <div>
-                        <form action="{{ route('clipper.uploads.retry', $item['id']) }}" method="POST">
-                            @csrf
-                            <button type="submit" class="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold border border-zinc-700">
-                                Retry Upload
-                            </button>
-                        </form>
+                        @if ($item->status === 'failed')
+                            <form action="{{ route('clipper.uploads.retry', $item->id) }}" method="POST">
+                                @csrf
+                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold border border-zinc-700">
+                                    Retry Upload
+                                </button>
+                            </form>
+                        @endif
                     </div>
                 </div>
             @endforeach
@@ -67,4 +77,3 @@
 
 </div>
 @endsection
-

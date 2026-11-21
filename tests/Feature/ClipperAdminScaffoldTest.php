@@ -100,9 +100,18 @@ class ClipperAdminScaffoldTest extends TestCase
         $this->actingAs($admin)->get('/clipper/streams/create')->assertStatus(200)->assertSee('Configure New Livestream');
         $this->actingAs($admin)->get('/clipper/streams/' . $stream->id)->assertStatus(200)->assertSee('Clipping Parameters');
 
+        $clip = \App\Models\Clipper\ClipperClip::create([
+            'stream_id' => $stream->id,
+            'title' => 'Test Highlight Clip',
+            'duration' => 30.0,
+            'score' => 90.0,
+            'status' => 'ready',
+            'approval_status' => 'pending',
+        ]);
+
         // Clips Library & Show
         $this->actingAs($admin)->get('/clipper/clips')->assertStatus(200)->assertSee('Clips Library');
-        $this->actingAs($admin)->get('/clipper/clips/1')->assertStatus(200)->assertSee('9:16 Vertical Video');
+        $this->actingAs($admin)->get('/clipper/clips/' . $clip->id)->assertStatus(200)->assertSee('9:16 Vertical Video');
 
         // Upload Queue
         $this->actingAs($admin)->get('/clipper/uploads')->assertStatus(200)->assertSee('Upload Queue');

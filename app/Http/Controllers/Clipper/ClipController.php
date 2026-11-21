@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Clipper;
 
 use App\Http\Controllers\Controller;
+use App\Models\Clipper\ClipperClip;
+use App\Models\Clipper\ClipperSetting;
+use App\Models\Clipper\ClipperUpload;
+use App\Models\Clipper\ClipperYoutubeAccount;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -15,7 +19,20 @@ class ClipController extends Controller
     public function index(Request $request): View
     {
         $status = $request->query('status', 'all');
-        $clips = []; // Scaffolding empty list for Phase 1
+
+        $query = ClipperClip::with(['stream', 'upload'])->latest();
+
+        if ($status === 'pending') {
+            $query->where('approval_status', 'pending');
+        } elseif ($status === 'ready') {
+            $query->where('status', 'ready')->where('approval_status', 'approved');
+        } elseif ($status === 'uploaded') {
+            $query->whereHas('upload', fn ($q) => $q->where('status', 'published'));
+        } elseif ($status === 'failed') {
+            $query->where('status', 'failed');
+        }
+
+        $clips = $query->get();
 
         return view('clipper.clips.index', compact('clips', 'status'));
     }
@@ -25,19 +42,7 @@ class ClipController extends Controller
      */
     public function show(string $id): View
     {
-        $clip = [
-            'id' => $id,
-            'title' => 'Crazy High-Speed Chase in Vice City Downtown',
-            'description' => "Unbelievable moments captured live from GTA VI! #GTAVI #GTA6 #Gaming #Shorts",
-            'duration' => 38.5,
-            'aspect_ratio' => '9:16',
-            'score' => 88.5,
-            'status' => 'ready',
-            'approval_status' => 'pending',
-            'video_url' => null,
-            'thumbnail_url' => null,
-            'created_at' => now()->toFormattedDateString(),
-        ];
+        $clip = ClipperClip::with(['stream', 'upload', 'highlight'])->findOrFail($id);
 
         return view('clipper.clips.show', compact('clip'));
     }
@@ -47,9 +52,59 @@ class ClipController extends Controller
      */
     public function updateApproval(Request $request, string $id): RedirectResponse
     {
+        $clip = ClipperClip::findOrFail($id);
         $action = $request->input('action', 'approve');
 
-        return back()->with('status', "Clip status updated: {$action}.");
+        if ($action === 'approve') {
+            $clip->approval_status = 'approved';
+            $clip->save();
+
+            // Auto enqueue to upload queue if not already enqueued
+            $defaultPrivacy = ClipperSetting::get('default_privacy', 'public');
+            ClipperUpload::firstOrCreate(
+                ['clip_id' => $clip->id],
+                [
+                    'status' => 'queued',
+                    'privacy' => $defaultPrivacy,
+                    'attempts' => 0,
+                ]
+            );
+
+            return back()->with('status', "Clip \"{$clip->title}\" approved and added to YouTube upload queue!");
+        }
+
+        $clip->approval_status = 'rejected';
+        $clip->save();
+
+        return back()->with('status', "Clip archived/rejected.");
+    }
+
+    /**
+     * Update clip metadata (title and description).
+     */
+    public function update(Request $request, string $id): RedirectResponse
+    {
+        $clip = ClipperClip::findOrFail($id);
+
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:100'],
+            'description' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        $clip->update($validated);
+
+        return back()->with('status', 'Clip title & description updated.');
+    }
+
+    /**
+     * Delete clip.
+     */
+    public function destroy(string $id): RedirectResponse
+    {
+        $clip = ClipperClip::findOrFail($id);
+        $title = $clip->title;
+        $clip->delete();
+
+        return redirect()->route('clipper.clips.index')->with('status', "Clip \"{$title}\" removed.");
     }
 }
-

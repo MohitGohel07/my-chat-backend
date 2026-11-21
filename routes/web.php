@@ -45,6 +45,8 @@ Route::prefix('clipper')->name('clipper.')->group(function () {
         Route::prefix('clips')->name('clips.')->group(function () {
             Route::get('/', [ClipController::class, 'index'])->name('index');
             Route::get('{id}', [ClipController::class, 'show'])->name('show');
+            Route::put('{id}', [ClipController::class, 'update'])->name('update');
+            Route::delete('{id}', [ClipController::class, 'destroy'])->name('destroy');
             Route::post('{id}/approval', [ClipController::class, 'updateApproval'])->name('approval');
         });
 
