@@ -1,0 +1,78 @@
+@extends('clipper.layouts.app')
+
+@section('content')
+<div class="space-y-6">
+
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-zinc-800 pb-4">
+        <div>
+            <h1 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Clips Library</h1>
+            <p class="text-xs sm:text-sm text-zinc-400 mt-0.5">
+                Review, approve, and manage rendered 9:16 vertical highlight shorts
+            </p>
+        </div>
+    </div>
+
+    <!-- Filter Tabs (Horizontal scroll on mobile) -->
+    <div class="flex items-center gap-2 overflow-x-auto pb-2 border-b border-zinc-800 text-xs font-semibold no-scrollbar">
+        <a href="{{ route('clipper.clips.index', ['status' => 'all']) }}"
+           class="px-3 py-1.5 rounded-lg whitespace-nowrap transition {{ $status === 'all' ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400 hover:text-white' }}">
+            All Clips
+        </a>
+        <a href="{{ route('clipper.clips.index', ['status' => 'pending']) }}"
+           class="px-3 py-1.5 rounded-lg whitespace-nowrap transition {{ $status === 'pending' ? 'bg-amber-950 text-amber-300 font-bold border border-amber-800' : 'text-zinc-400 hover:text-white' }}">
+            Pending Review
+        </a>
+        <a href="{{ route('clipper.clips.index', ['status' => 'ready']) }}"
+           class="px-3 py-1.5 rounded-lg whitespace-nowrap transition {{ $status === 'ready' ? 'bg-emerald-950 text-emerald-300 font-bold border border-emerald-800' : 'text-zinc-400 hover:text-white' }}">
+            Ready to Upload
+        </a>
+        <a href="{{ route('clipper.clips.index', ['status' => 'uploaded']) }}"
+           class="px-3 py-1.5 rounded-lg whitespace-nowrap transition {{ $status === 'uploaded' ? 'bg-purple-950 text-purple-300 font-bold border border-purple-800' : 'text-zinc-400 hover:text-white' }}">
+            Published on YouTube
+        </a>
+        <a href="{{ route('clipper.clips.index', ['status' => 'failed']) }}"
+           class="px-3 py-1.5 rounded-lg whitespace-nowrap transition {{ $status === 'failed' ? 'bg-rose-950 text-rose-300 font-bold border border-rose-800' : 'text-zinc-400 hover:text-white' }}">
+            Failed
+        </a>
+    </div>
+
+    @if (empty($clips))
+        <div class="gta-card text-center py-12">
+            <div class="text-4xl mb-3">🎬</div>
+            <h2 class="text-base font-bold text-white mb-1">No Clips in this View</h2>
+            <p class="text-xs sm:text-sm text-zinc-400 max-w-sm mx-auto">
+                No video highlights match the selected filter. As active streams detect action, clips will appear here automatically.
+            </p>
+        </div>
+    @else
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            @foreach ($clips as $clip)
+                <div class="gta-card flex flex-col justify-between space-y-3">
+                    <div class="aspect-[9/16] max-h-72 w-full bg-zinc-900 rounded-lg flex items-center justify-center relative overflow-hidden border border-zinc-800">
+                        <span class="text-3xl text-zinc-600">▶️</span>
+                        <div class="absolute top-2 right-2">
+                            <span class="badge badge-purple">{{ $clip['duration'] }}s</span>
+                        </div>
+                        <div class="absolute bottom-2 left-2">
+                            <span class="badge badge-amber">Score: {{ $clip['score'] }}</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="font-bold text-sm text-white line-clamp-1">{{ $clip['title'] }}</h3>
+                        <p class="text-xs text-zinc-400 line-clamp-2 mt-1">{{ $clip['description'] }}</p>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-2 border-t border-zinc-800/80">
+                        <a href="{{ route('clipper.clips.show', $clip['id']) }}" class="text-xs text-pink-400 hover:text-pink-300 font-semibold">
+                            Preview & Details &rarr;
+                        </a>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    @endif
+
+</div>
+@endsection
+
