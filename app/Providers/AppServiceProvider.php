@@ -21,8 +21,19 @@ class AppServiceProvider extends ServiceProvider
     {
         if (config('database.default') === 'sqlite') {
             $database = config('database.connections.sqlite.database');
-            if ($database && $database !== ':memory:' && ! file_exists($database) && is_dir(dirname($database))) {
-                @touch($database);
+            if ($database && $database !== ':memory:' && is_dir(dirname($database))) {
+                if (! file_exists($database)) {
+                    @touch($database);
+                }
+
+                // Auto-run migrations if tables are not yet initialized on fresh container boot
+                if (! \Illuminate\Support\Facades\Schema::hasTable('users')) {
+                    try {
+                        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+                    } catch (\Throwable $e) {
+                        // Log or ignore during build phase
+                    }
+                }
             }
         }
     }
