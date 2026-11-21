@@ -59,3 +59,4 @@ python main.py
 - `POST /api/clipper/heartbeat` &rarr; Telemetry & alive signal (CPU, RAM, disk)
 - `GET /api/clipper/streams/active` &rarr; List of streams with `status = monitoring`
 - `POST /api/clipper/clip-created` &rarr; Ingestion of newly generated vertical clips
+
