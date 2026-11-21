@@ -19,10 +19,47 @@ class YouTubeSettingsController extends Controller
     {
         $account = ClipperYoutubeAccount::where('is_active', true)->latest()->first();
 
+        // Auto-fetch channel avatar and custom URL if missing
+        if ($account && ! empty($account->access_token) && empty($account->channel_avatar)) {
+            try {
+                $channelRes = Http::withToken($account->access_token)
+                    ->timeout(5)
+                    ->get('https://www.googleapis.com/youtube/v3/channels', [
+                        'part' => 'snippet',
+                        'mine' => 'true',
+                    ]);
+
+                if ($channelRes->successful() && ! empty($channelRes->json('items'))) {
+                    $item = $channelRes->json('items')[0];
+                    $account->channel_id = $item['id'] ?? $account->channel_id;
+                    $account->channel_title = $item['snippet']['title'] ?? $account->channel_title;
+                    $account->channel_avatar = $item['snippet']['thumbnails']['high']['url']
+                        ?? ($item['snippet']['thumbnails']['medium']['url']
+                        ?? ($item['snippet']['thumbnails']['default']['url'] ?? null));
+
+                    $customUrl = $item['snippet']['customUrl'] ?? null;
+                    $account->channel_url = $customUrl
+                        ? 'https://www.youtube.com/' . ltrim($customUrl, '/')
+                        : 'https://www.youtube.com/channel/' . $account->channel_id;
+
+                    $account->save();
+                }
+            } catch (\Throwable $e) {
+                // Ignore transient API failure
+            }
+        }
+
+        $channelUrl = $account?->channel_url;
+        if (! $channelUrl && $account?->channel_id) {
+            $channelUrl = 'https://www.youtube.com/channel/' . $account->channel_id;
+        }
+
         $status = [
             'connected' => (bool) ($account && ! empty($account->access_token)),
             'channel_name' => $account?->channel_title,
             'channel_id' => $account?->channel_id,
+            'channel_avatar' => $account?->channel_avatar,
+            'channel_url' => $channelUrl,
             'auto_upload_enabled' => (bool) ClipperSetting::get('auto_upload_enabled', config('clipper.upload_enabled', false)),
             'default_privacy' => ClipperSetting::get('default_privacy', config('clipper.upload_privacy', 'private')),
             'daily_limit' => (int) ClipperSetting::get('daily_limit', config('clipper.upload_daily_limit', 3)),
@@ -104,6 +141,8 @@ class YouTubeSettingsController extends Controller
         // Fetch YouTube channel details
         $channelTitle = 'Authorized YouTube Channel';
         $channelId = null;
+        $channelAvatar = null;
+        $channelUrl = null;
 
         try {
             $channelRes = Http::withToken($accessToken)
@@ -116,15 +155,25 @@ class YouTubeSettingsController extends Controller
                 $item = $channelRes->json('items')[0];
                 $channelId = $item['id'] ?? null;
                 $channelTitle = $item['snippet']['title'] ?? $channelTitle;
+                $channelAvatar = $item['snippet']['thumbnails']['high']['url']
+                    ?? ($item['snippet']['thumbnails']['medium']['url']
+                    ?? ($item['snippet']['thumbnails']['default']['url'] ?? null));
+
+                $customUrl = $item['snippet']['customUrl'] ?? null;
+                $channelUrl = $customUrl
+                    ? 'https://www.youtube.com/' . ltrim($customUrl, '/')
+                    : 'https://www.youtube.com/channel/' . $channelId;
             }
         } catch (\Throwable $e) {
-            // Keep default channel title if channel API is restricted
+            // Keep defaults if channel query fails
         }
 
         // Save account credentials
         $account = ClipperYoutubeAccount::firstOrNew(['is_active' => true]);
         $account->channel_id = $channelId;
         $account->channel_title = $channelTitle;
+        $account->channel_avatar = $channelAvatar;
+        $account->channel_url = $channelUrl ?? ($channelId ? 'https://www.youtube.com/channel/' . $channelId : null);
         $account->access_token = $accessToken;
         if ($refreshToken) {
             $account->refresh_token = $refreshToken;

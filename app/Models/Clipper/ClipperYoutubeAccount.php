@@ -14,6 +14,8 @@ class ClipperYoutubeAccount extends Model
     protected $fillable = [
         'channel_id',
         'channel_title',
+        'channel_avatar',
+        'channel_url',
         'access_token',
         'refresh_token',
         'token_type',

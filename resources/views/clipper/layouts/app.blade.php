@@ -89,7 +89,7 @@
         }
     </style>
 </head>
-<body class="min-h-screen pb-20 md:pb-6 flex flex-col">
+<body class="min-h-screen pb-36 md:pb-12 flex flex-col">
 
     <!-- Top Navigation Bar -->
     <header class="sticky top-0 z-40 w-full border-b border-zinc-800 bg-zinc-950/90 backdrop-blur-md px-4 py-3">
