@@ -19,7 +19,7 @@
         @endif
     </div>
 
-    @if (empty($logs))
+    @if ($logs->isEmpty())
         <div class="gta-card text-center py-12">
             <div class="text-4xl mb-3">📜</div>
             <h2 class="text-base font-bold text-white mb-1">No Log Entries Recorded</h2>
@@ -32,23 +32,25 @@
             <table class="w-full text-left text-xs">
                 <thead>
                     <tr class="border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
-                        <th class="py-2 px-3">Timestamp</th>
-                        <th class="py-2 px-3">Level</th>
-                        <th class="py-2 px-3">Event / Message</th>
-                        <th class="py-2 px-3">Stream</th>
+                        <th class="py-2.5 px-3">Timestamp</th>
+                        <th class="py-2.5 px-3">Level</th>
+                        <th class="py-2.5 px-3">Event / Message</th>
+                        <th class="py-2.5 px-3">Stream</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-800/60 font-mono">
                     @foreach ($logs as $log)
                         <tr>
-                            <td class="py-2 px-3 text-zinc-400 whitespace-nowrap">{{ $log['timestamp'] }}</td>
-                            <td class="py-2 px-3">
-                                <span class="badge {{ $log['level'] === 'error' ? 'badge-rose' : 'badge-gray' }}">
-                                    {{ strtoupper($log['level']) }}
+                            <td class="py-2.5 px-3 text-zinc-400 whitespace-nowrap text-[11px]">
+                                {{ $log->created_at->format('M d, H:i:s') }}
+                            </td>
+                            <td class="py-2.5 px-3 whitespace-nowrap">
+                                <span class="badge {{ $log->level === 'error' ? 'badge-rose' : ($log->level === 'success' ? 'badge-green' : ($log->level === 'warning' ? 'badge-amber' : 'badge-purple')) }}">
+                                    {{ strtoupper($log->level) }}
                                 </span>
                             </td>
-                            <td class="py-2 px-3 text-zinc-200">{{ $log['message'] }}</td>
-                            <td class="py-2 px-3 text-zinc-400">{{ $log['stream_name'] ?? '—' }}</td>
+                            <td class="py-2.5 px-3 text-zinc-200">{{ $log->message }}</td>
+                            <td class="py-2.5 px-3 text-zinc-400 whitespace-nowrap">{{ $log->stream?->name ?? 'System' }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -58,4 +60,3 @@
 
 </div>
 @endsection
-

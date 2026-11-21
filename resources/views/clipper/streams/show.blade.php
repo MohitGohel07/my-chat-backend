@@ -20,24 +20,32 @@
             </p>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
+            <form action="{{ route('clipper.streams.captureHighlight', $stream->id) }}" method="POST">
+                @csrf
+                <button type="submit" class="gta-btn-primary text-xs shadow-lg shadow-pink-600/30">
+                    <span>⚡</span>
+                    <span>Capture Highlight Now</span>
+                </button>
+            </form>
+
             <form action="{{ route('clipper.streams.toggle', $stream->id) }}" method="POST">
                 @csrf
                 @if ($stream->status === 'monitoring')
                     <input type="hidden" name="action" value="stop">
-                    <button type="submit" class="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs transition">
-                        ⏹️ Stop Monitoring
+                    <button type="submit" class="px-3.5 py-2 rounded-lg bg-amber-950 hover:bg-amber-900 text-amber-300 font-semibold text-xs transition border border-amber-800">
+                        ⏹️ Pause Monitoring
                     </button>
                 @else
                     <input type="hidden" name="action" value="start">
-                    <button type="submit" class="gta-btn-primary text-xs">
+                    <button type="submit" class="px-3.5 py-2 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 font-semibold text-xs transition border border-emerald-800">
                         ▶️ Start Monitoring
                     </button>
                 @endif
             </form>
 
             <a href="{{ route('clipper.streams.logs', $stream->id) }}" class="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold border border-zinc-700 transition">
-                📜 Logs
+                📜 Stream Logs
             </a>
 
             <form action="{{ route('clipper.streams.destroy', $stream->id) }}" method="POST" onsubmit="return confirm('Remove this stream configuration?');">

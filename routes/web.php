@@ -37,6 +37,7 @@ Route::prefix('clipper')->name('clipper.')->group(function () {
             Route::post('/', [StreamController::class, 'store'])->name('store');
             Route::get('{id}', [StreamController::class, 'show'])->name('show');
             Route::post('{id}/toggle', [StreamController::class, 'toggle'])->name('toggle');
+            Route::post('{id}/capture-highlight', [StreamController::class, 'captureHighlight'])->name('captureHighlight');
             Route::delete('{id}', [StreamController::class, 'destroy'])->name('destroy');
             Route::get('{stream}/logs', [StreamLogController::class, 'index'])->name('logs');
         });

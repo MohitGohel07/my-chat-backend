@@ -52,13 +52,24 @@
                             <span>💬 Captions: {{ $stream->captions_enabled ? 'Yes' : 'No' }}</span>
                         </div>
                     </div>
+
                     <div class="flex items-center gap-2 flex-wrap">
+                        @if ($stream->status === 'monitoring')
+                            <form action="{{ route('clipper.streams.captureHighlight', $stream->id) }}" method="POST" class="inline">
+                                @csrf
+                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-pink-600 hover:bg-pink-500 text-white text-xs font-semibold transition flex items-center gap-1 shadow-lg shadow-pink-600/30">
+                                    <span>⚡</span>
+                                    <span>Capture Clip</span>
+                                </button>
+                            </form>
+                        @endif
+
                         <form action="{{ route('clipper.streams.toggle', $stream->id) }}" method="POST" class="inline">
                             @csrf
                             @if ($stream->status === 'monitoring')
                                 <input type="hidden" name="action" value="stop">
                                 <button type="submit" class="px-3 py-1.5 rounded-lg bg-amber-950 hover:bg-amber-900 text-amber-300 border border-amber-800 text-xs font-semibold transition">
-                                    ⏹️ Stop
+                                    ⏹️ Pause
                                 </button>
                             @else
                                 <input type="hidden" name="action" value="start">

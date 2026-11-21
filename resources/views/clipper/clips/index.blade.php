@@ -40,9 +40,21 @@
         <div class="gta-card text-center py-12">
             <div class="text-4xl mb-3">🎬</div>
             <h2 class="text-base font-bold text-white mb-1">No Clips in this View</h2>
-            <p class="text-xs sm:text-sm text-zinc-400 max-w-sm mx-auto">
+            <p class="text-xs sm:text-sm text-zinc-400 max-w-sm mx-auto mb-4">
                 No video highlights match the selected filter. As active streams detect action, clips will appear here automatically.
             </p>
+
+            @php
+                $activeStream = \App\Models\Clipper\ClipperStream::where('status', 'monitoring')->first() ?? \App\Models\Clipper\ClipperStream::first();
+            @endphp
+            @if ($activeStream)
+                <form action="{{ route('clipper.streams.captureHighlight', $activeStream->id) }}" method="POST">
+                    @csrf
+                    <button type="submit" class="gta-btn-primary text-xs shadow-lg shadow-pink-600/30">
+                        ⚡ Trigger Highlight Capture Now ({{ $activeStream->name }})
+                    </button>
+                </form>
+            @endif
         </div>
     @else
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

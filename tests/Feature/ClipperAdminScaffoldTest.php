@@ -156,6 +156,12 @@ class ClipperAdminScaffoldTest extends TestCase
             ->assertStatus(200)
             ->assertSee('Live GTA VI Stream');
 
+        // Test capture highlight
+        $captureResponse = $this->actingAs($admin)->post('/clipper/streams/' . $stream->id . '/capture-highlight');
+        $captureResponse->assertRedirect('/clipper/clips');
+        $this->assertDatabaseHas('clipper_clips', ['stream_id' => $stream->id]);
+        $this->assertDatabaseHas('clipper_logs', ['stream_id' => $stream->id]);
+
         // Toggle monitoring stop
         $this->actingAs($admin)->post('/clipper/streams/' . $stream->id . '/toggle', ['action' => 'stop'])
             ->assertSessionHas('status');
