@@ -9,15 +9,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Install python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy requirements (matches whether context is repo root or worker/ directory)
+COPY requirements.txt* worker/requirements.txt* ./
+RUN if [ -f requirements.txt ]; then pip install --no-cache-dir -r requirements.txt; \
+    elif [ -f worker/requirements.txt ]; then pip install --no-cache-dir -r worker/requirements.txt; fi
 
-# Copy source code
+# Copy application files
 COPY . .
 
-# Set unbuffered python output for real-time cloud logs
 ENV PYTHONUNBUFFERED=1
 
-CMD ["python", "main.py"]
-
+# Execute main.py from either root or worker/ subdirectory
+CMD ["sh", "-c", "if [ -f worker/main.py ]; then python worker/main.py; else python main.py; fi"]
