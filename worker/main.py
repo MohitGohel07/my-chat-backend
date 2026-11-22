@@ -385,13 +385,6 @@ def process_stream_slice(stream):
             logger.error(f"Failed to upload clip to Laravel: HTTP {post_resp.status_code} - {post_resp.text}")
     except Exception as e:
         logger.error(f"Error calling clip-created callback: {e}")
-            # Clean local temp file
-            if os.path.exists(clip_path):
-                os.remove(clip_path)
-        else:
-            logger.error(f"Failed to upload clip to Laravel: HTTP {post_resp.status_code} - {post_resp.text}")
-    except Exception as e:
-        logger.error(f"Error calling clip-created callback: {e}")
 
 
 def main_loop():
