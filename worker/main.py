@@ -80,29 +80,76 @@ def fetch_active_streams():
     return []
 
 
+import re
+
 def extract_and_cut_youtube_stream(stream_url, output_path, duration=35):
     """
     Connects to live YouTube stream or video URL using yt-dlp,
     then cuts and crops to genuine 9:16 vertical Short (1080x1920) with FFmpeg.
     """
-    logger.info(f"Connecting to YouTube livestream URL: {stream_url}")
+    # 1. Normalize YouTube URL
+    match = re.search(r'(?:v=|/live/|youtu\.be/)([a-zA-Z0-9_-]{11})', stream_url)
+    clean_url = f"https://www.youtube.com/watch?v={match.group(1)}" if match else stream_url
 
-    # Method 1: Extract direct media URL with yt-dlp and transcode with FFmpeg
+    logger.info(f"Connecting to YouTube feed: {clean_url} (Original: {stream_url})")
+
+    temp_raw = output_path + ".temp.mp4"
+
+    # Method 1: yt-dlp native section download (Ultra-fast & precise)
     try:
+        logger.info("Attempting Method 1: yt-dlp native section cut...")
         yt_cmd = [
             "yt-dlp",
             "--no-playlist",
-            "-f", "best[ext=mp4]/best",
-            "-g",
-            stream_url
+            "--extractor-args", "youtube:player_client=android,web",
+            "--download-sections", f"*00:00:15-00:00:{15+duration}",
+            "--force-keyframes-at-cuts",
+            "-f", "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
+            "-o", temp_raw,
+            clean_url
         ]
-        direct_url = subprocess.check_output(yt_cmd, stderr=subprocess.DEVNULL, timeout=25).decode().strip().split('\n')[0]
+        subprocess.run(yt_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, check=True, timeout=90)
+
+        if os.path.exists(temp_raw) and os.path.getsize(temp_raw) > 10000:
+            logger.info("Raw segment downloaded. Cropping to 9:16 vertical (1080x1920)...")
+            cmd_crop = [
+                "ffmpeg", "-y",
+                "-i", temp_raw,
+                "-vf", "crop=ih*(9/16):ih,scale=1080:1920:flags=lanczos",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "22",
+                "-c:a", "aac", "-b:a", "128k",
+                output_path
+            ]
+            subprocess.run(cmd_crop, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=60)
+            if os.path.exists(temp_raw):
+                os.remove(temp_raw)
+            if os.path.exists(output_path) and os.path.getsize(output_path) > 10000:
+                logger.info(f"✅ Method 1 success: Generated 9:16 Short ({os.path.getsize(output_path)} bytes)")
+                return True
+    except Exception as e:
+        logger.warning(f"Method 1 failed: {e}. Trying Method 2 (HLS stream capture)...")
+        if os.path.exists(temp_raw):
+            os.remove(temp_raw)
+
+    # Method 2: Extract direct HLS / MP4 stream URL and let FFmpeg cut
+    try:
+        logger.info("Attempting Method 2: Direct stream extraction...")
+        yt_url_cmd = [
+            "yt-dlp",
+            "--no-playlist",
+            "--extractor-args", "youtube:player_client=android,web",
+            "-f", "best",
+            "-g",
+            clean_url
+        ]
+        direct_urls = subprocess.check_output(yt_url_cmd, stderr=subprocess.DEVNULL, timeout=30).decode().strip().split('\n')
+        direct_url = direct_urls[0] if direct_urls else None
 
         if direct_url and direct_url.startswith("http"):
-            logger.info("Direct media stream URL extracted. Cutting 35s segment and cropping to 9:16 vertical...")
+            logger.info("Direct stream URL acquired. Streaming into FFmpeg...")
             ffmpeg_cmd = [
                 "ffmpeg", "-y",
-                "-ss", "00:00:05",
+                "-ss", "00:00:10",
                 "-t", str(duration),
                 "-i", direct_url,
                 "-vf", "crop=ih*(9/16):ih,scale=1080:1920:flags=lanczos",
@@ -112,24 +159,25 @@ def extract_and_cut_youtube_stream(stream_url, output_path, duration=35):
             ]
             subprocess.run(ffmpeg_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=90)
             if os.path.exists(output_path) and os.path.getsize(output_path) > 10000:
-                logger.info(f"Successfully cut live stream into 9:16 vertical video: {os.path.getsize(output_path)} bytes")
+                logger.info(f"✅ Method 2 success: Generated 9:16 Short ({os.path.getsize(output_path)} bytes)")
                 return True
     except Exception as e:
-        logger.warning(f"Direct stream transcode error: {e}. Trying fallback downloader method...")
+        logger.warning(f"Method 2 failed: {e}. Trying Method 3 (FFmpeg downloader)...")
 
-    # Method 2: yt-dlp direct clip downloader fallback
+    # Method 3: yt-dlp downloader args with ffmpeg
     try:
-        temp_raw = output_path + ".temp.mp4"
+        logger.info("Attempting Method 3: yt-dlp with FFmpeg downloader...")
         cmd_dl = [
             "yt-dlp",
             "--no-playlist",
+            "--extractor-args", "youtube:player_client=android,web",
             "--downloader", "ffmpeg",
             "--downloader-args", f"ffmpeg_i:-t {duration}",
-            "-f", "best[ext=mp4]/best",
+            "-f", "best",
             "-o", temp_raw,
-            stream_url
+            clean_url
         ]
-        subprocess.run(cmd_dl, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=90)
+        subprocess.run(cmd_dl, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, check=True, timeout=90)
 
         if os.path.exists(temp_raw):
             cmd_crop = [
@@ -143,12 +191,13 @@ def extract_and_cut_youtube_stream(stream_url, output_path, duration=35):
             subprocess.run(cmd_crop, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=60)
             if os.path.exists(temp_raw):
                 os.remove(temp_raw)
-
             if os.path.exists(output_path) and os.path.getsize(output_path) > 10000:
-                logger.info(f"Fallback downloader cut 9:16 vertical video: {os.path.getsize(output_path)} bytes")
+                logger.info(f"✅ Method 3 success: Generated 9:16 Short ({os.path.getsize(output_path)} bytes)")
                 return True
     except Exception as e:
-        logger.error(f"Downloader fallback failed: {e}")
+        logger.error(f"Method 3 failed: {e}")
+        if os.path.exists(temp_raw):
+            os.remove(temp_raw)
 
     return False
 

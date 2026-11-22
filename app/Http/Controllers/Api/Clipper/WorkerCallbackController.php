@@ -47,19 +47,26 @@ class WorkerCallbackController extends Controller
      */
     public function activeStreams(Request $request): JsonResponse
     {
-        $streams = ClipperStream::where('status', 'monitoring')->get()->map(function ($stream) {
-            $triggerKey = 'trigger_capture_' . $stream->id;
-            $isTriggered = (bool) ClipperSetting::get($triggerKey, false);
-            if ($isTriggered) {
-                ClipperSetting::forget($triggerKey);
-            }
-            $stream->trigger_instant_capture = $isTriggered;
-            return $stream;
-        });
+        try {
+            $streams = ClipperStream::where('status', 'monitoring')->get()->map(function ($stream) {
+                $triggerKey = 'trigger_capture_' . $stream->id;
+                $isTriggered = (bool) ClipperSetting::get($triggerKey, false);
+                if ($isTriggered) {
+                    ClipperSetting::forget($triggerKey);
+                }
+                $stream->trigger_instant_capture = $isTriggered;
+                return $stream;
+            });
 
-        return response()->json([
-            'streams' => $streams,
-        ]);
+            return response()->json([
+                'streams' => $streams,
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('activeStreams API error: ' . $e->getMessage());
+            return response()->json([
+                'streams' => ClipperStream::where('status', 'monitoring')->get(),
+            ]);
+        }
     }
 
     /**

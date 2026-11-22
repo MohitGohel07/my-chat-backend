@@ -29,5 +29,10 @@ class ClipperSetting extends Model
         $val = is_array($value) ? json_encode($value) : (string) $value;
         static::updateOrCreate(['key' => $key], ['value' => $val]);
     }
+
+    public static function forget(string $key): void
+    {
+        static::where('key', $key)->delete();
+    }
 }
 

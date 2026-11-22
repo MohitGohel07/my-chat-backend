@@ -98,6 +98,8 @@ class YouTubePublisher
                 $fileContents = file_get_contents($videoPath);
             } elseif ($videoPath && file_exists(public_path(ltrim($videoPath, '/')))) {
                 $fileContents = file_get_contents(public_path(ltrim($videoPath, '/')));
+            } elseif ($videoPath && str_starts_with($videoPath, 'http')) {
+                $fileContents = @file_get_contents($videoPath) ?: '';
             } elseif (file_exists(public_path('clips/highlight_sample.mp4'))) {
                 $fileContents = file_get_contents(public_path('clips/highlight_sample.mp4'));
             } elseif (file_exists(public_path('storage/clips/highlight_sample.mp4'))) {
