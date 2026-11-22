@@ -54,6 +54,26 @@ class StreamController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        $rawUrl = trim($request->input('source_url', ''));
+
+        // Normalize channel handles (@ChannelName) or incomplete URLs
+        if (str_starts_with($rawUrl, '@')) {
+            $rawUrl = 'https://www.youtube.com/' . $rawUrl . '/live';
+        } elseif (! str_starts_with($rawUrl, 'http://') && ! str_starts_with($rawUrl, 'https://')) {
+            $rawUrl = 'https://' . $rawUrl;
+        }
+
+        // If it's a YouTube channel URL without /live, append /live so worker monitors live status
+        if (preg_match('#youtube\.com/@([a-zA-Z0-9_\-\.]+)/?$#i', $rawUrl, $m)) {
+            $rawUrl = "https://www.youtube.com/@{$m[1]}/live";
+        } elseif (preg_match('#youtube\.com/channel/([a-zA-Z0-9_\-]+)/?$#i', $rawUrl, $m)) {
+            $rawUrl = "https://www.youtube.com/channel/{$m[1]}/live";
+        } elseif (preg_match('#youtube\.com/c/([a-zA-Z0-9_\-\.]+)/?$#i', $rawUrl, $m)) {
+            $rawUrl = "https://www.youtube.com/c/{$m[1]}/live";
+        }
+
+        $request->merge(['source_url' => $rawUrl]);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'source_url' => ['required', 'url', 'max:2048'],

@@ -3,11 +3,19 @@
 @section('content')
 <div class="space-y-6 max-w-3xl mx-auto">
 
-    <div class="border-b border-zinc-800 pb-4">
-        <h1 class="text-xl sm:text-2xl font-bold text-white tracking-tight">YouTube Channel & OAuth</h1>
-        <p class="text-xs sm:text-sm text-zinc-400 mt-0.5">
-            Connect your authorized YouTube channel for automatic Shorts publishing
-        </p>
+    <div class="border-b border-zinc-800 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sticky top-14 sm:static z-30 bg-zinc-950/95 sm:bg-transparent backdrop-blur-md sm:backdrop-blur-none py-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div>
+            <h1 class="text-xl sm:text-2xl font-bold text-white tracking-tight">YouTube Channel & OAuth</h1>
+            <p class="text-xs sm:text-sm text-zinc-400 mt-0.5">
+                Connect your authorized YouTube channel for automatic Shorts publishing
+            </p>
+        </div>
+        <div class="shrink-0 w-full sm:w-auto">
+            <button type="submit" form="youtubeSettingsForm" class="gta-btn-primary w-full sm:w-auto text-xs sm:text-sm py-2.5 px-5 font-bold shadow-lg shadow-pink-600/30 flex items-center justify-center gap-2">
+                <span>💾</span>
+                <span>Save Preferences</span>
+            </button>
+        </div>
     </div>
 
     <!-- Channel Connection Status Card -->
@@ -87,7 +95,7 @@
     </div>
 
     <!-- Publishing Defaults Form (Optimized for Mobile Touch) -->
-    <form action="{{ route('clipper.youtube.update') }}" method="POST" class="space-y-6">
+    <form id="youtubeSettingsForm" action="{{ route('clipper.youtube.update') }}" method="POST" class="space-y-6">
         @csrf
 
         <div class="gta-card space-y-4">

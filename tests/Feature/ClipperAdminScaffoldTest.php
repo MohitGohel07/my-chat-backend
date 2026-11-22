@@ -428,4 +428,25 @@ class ClipperAdminScaffoldTest extends TestCase
         $this->assertNotNull($upload);
         $this->assertEquals('standard', $upload->upload_type);
     }
+
+    public function test_admin_can_create_stream_from_channel_handle(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+
+        $response = $this->actingAs($admin)->post('/clipper/streams', [
+            'name' => 'MikkGamer Channel',
+            'source_url' => '@MikkGamer',
+            'clip_min_seconds' => 20,
+            'clip_max_seconds' => 60,
+            'highlight_sensitivity' => 'medium',
+            'vertical_enabled' => '1',
+            'upload_privacy' => 'private',
+        ]);
+
+        $response->assertRedirect('/clipper/streams');
+        $this->assertDatabaseHas('clipper_streams', [
+            'name' => 'MikkGamer Channel',
+            'source_url' => 'https://www.youtube.com/@MikkGamer/live',
+        ]);
+    }
 }

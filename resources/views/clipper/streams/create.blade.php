@@ -3,37 +3,48 @@
 @section('content')
 <div class="max-w-2xl mx-auto space-y-6">
 
-    <div class="border-b border-zinc-800 pb-4">
-        <a href="{{ route('clipper.streams.index') }}" class="text-xs text-zinc-400 hover:text-white inline-flex items-center gap-1 mb-2">
-            <span>&larr;</span> Back to Streams
-        </a>
-        <h1 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Configure New Livestream</h1>
-        <p class="text-xs sm:text-sm text-zinc-400 mt-0.5">
-            Set up real-time stream ingestion, clipping criteria, and publication behavior
-        </p>
+    <!-- Top Header with Immediate Action Button (Sticky on Mobile) -->
+    <div class="border-b border-zinc-800 pb-4 sticky top-14 sm:static z-30 bg-zinc-950/95 sm:bg-transparent backdrop-blur-md sm:backdrop-blur-none py-2 -mx-4 px-4 sm:mx-0 sm:px-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-lg sm:shadow-none">
+        <div>
+            <a href="{{ route('clipper.streams.index') }}" class="text-xs text-zinc-400 hover:text-white inline-flex items-center gap-1 mb-1">
+                <span>&larr;</span> Back to Streams
+            </a>
+            <h1 class="text-lg sm:text-2xl font-bold text-white tracking-tight">Configure New Livestream / Channel</h1>
+            <p class="text-[11px] sm:text-sm text-zinc-400 mt-0.5">
+                Paste any YouTube Live stream, Channel (@handle), or video URL
+            </p>
+        </div>
+        <div class="shrink-0 w-full sm:w-auto">
+            <button type="submit" form="createStreamForm" class="gta-btn-primary w-full sm:w-auto text-xs sm:text-sm py-2.5 px-5 shadow-lg shadow-pink-600/30 font-bold flex items-center justify-center gap-2">
+                <span>💾</span>
+                <span>Save & Start Monitoring</span>
+            </button>
+        </div>
     </div>
 
-    <form action="{{ route('clipper.streams.store') }}" method="POST" class="space-y-6">
+    <form id="createStreamForm" action="{{ route('clipper.streams.store') }}" method="POST" class="space-y-6">
         @csrf
 
         <!-- Stream Source Info -->
         <div class="gta-card space-y-4">
-            <h2 class="text-xs font-semibold uppercase tracking-wider text-zinc-400">1. Source Stream</h2>
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-zinc-400">1. Source Stream / Channel</h2>
 
             <div>
-                <label for="name" class="block text-xs font-medium text-zinc-300 mb-1">Stream Name / Identifier</label>
+                <label for="name" class="block text-xs font-medium text-zinc-300 mb-1">Stream Name / Channel Title</label>
                 <input type="text" id="name" name="name" value="{{ old('name', 'GTA VI Live Gameplay') }}" required
                        class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-pink-500"
-                       placeholder="e.g. Official GTA VI Gameplay Showcase">
+                       placeholder="e.g. GTA VI Live Gameplay or Channel Name">
             </div>
 
             <div>
-                <label for="source_url" class="block text-xs font-medium text-zinc-300 mb-1">Livestream URL</label>
-                <input type="url" id="source_url" name="source_url" value="{{ old('source_url') }}" required
+                <label for="source_url" class="block text-xs font-medium text-zinc-300 mb-1">Livestream, Video, or Channel URL</label>
+                <input type="text" id="source_url" name="source_url" value="{{ old('source_url') }}" required
                        class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-pink-500"
-                       placeholder="https://www.youtube.com/watch?v=... or Twitch URL">
-                <p class="text-[11px] text-zinc-500 mt-1">
-                    Only authorized public streams from supported platforms are permitted. SSRF protections apply.
+                       placeholder="https://www.youtube.com/@ChannelName or https://www.youtube.com/live/... or @ChannelHandle">
+                <p class="text-[11px] text-zinc-400 mt-1 flex flex-col gap-0.5">
+                    <span class="text-pink-400 font-semibold">💡 Supports all formats:</span>
+                    <span>• <strong>Channel Handle / URL:</strong> <code class="text-zinc-300">@MikkGamer</code> or <code class="text-zinc-300">https://www.youtube.com/@ChannelName</code> (automatically starts clipping the second the channel goes live!)</span>
+                    <span>• <strong>Live Feed / Video:</strong> <code class="text-zinc-300">https://www.youtube.com/live/FYxga5CEaFw</code> or any regular YouTube video/VOD.</span>
                 </p>
             </div>
         </div>
@@ -117,10 +128,11 @@
             </div>
         </div>
 
-        <div class="flex items-center justify-end gap-3 pt-2">
-            <a href="{{ route('clipper.streams.index') }}" class="px-4 py-2 rounded-lg text-sm text-zinc-400 hover:text-white transition">Cancel</a>
-            <button type="submit" class="gta-btn-primary text-sm">
-                Save & Start Monitoring
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-4 pb-32 sm:pb-8">
+            <a href="{{ route('clipper.streams.index') }}" class="px-4 py-2.5 rounded-lg text-sm text-center text-zinc-400 hover:text-white transition">Cancel</a>
+            <button type="submit" class="gta-btn-primary text-sm py-3 px-6 font-bold shadow-lg shadow-pink-600/30 flex items-center justify-center gap-2">
+                <span>💾</span>
+                <span>Save & Start Monitoring</span>
             </button>
         </div>
 

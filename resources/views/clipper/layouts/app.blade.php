@@ -192,13 +192,13 @@
         </aside>
 
         <!-- Page Body -->
-        <main class="flex-1 w-full min-w-0">
+        <main class="flex-1 w-full min-w-0 pb-28 md:pb-8">
             @yield('content')
         </main>
     </div>
 
     <!-- Mobile Bottom Navigation Bar (Fixed for touch control on mobile devices) -->
-    <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-zinc-950/95 border-t border-zinc-800 backdrop-blur-md px-2 py-1.5 flex items-center justify-around">
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-zinc-950/95 border-t border-zinc-800 backdrop-blur-md px-2 py-1.5 flex items-center justify-around shadow-2xl" style="padding-bottom: max(0.375rem, env(safe-area-inset-bottom));">
         <a href="{{ route('clipper.dashboard') }}" class="flex flex-col items-center justify-center py-1 px-2 rounded-lg text-center {{ request()->routeIs('clipper.dashboard') ? 'text-pink-400 font-bold' : 'text-zinc-400' }}">
             <span class="text-lg">📊</span>
             <span class="text-[10px] mt-0.5">Overview</span>
