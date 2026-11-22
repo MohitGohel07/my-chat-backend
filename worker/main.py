@@ -95,23 +95,58 @@ def extract_and_cut_youtube_stream(stream_url, output_path, duration=35):
 
     temp_raw = output_path + ".temp.mp4"
 
-    # Method 1: yt-dlp native section download (Ultra-fast & precise)
+    # Common yt-dlp options for datacenter bypass
+    base_args = [
+        "--no-playlist",
+        "--no-check-certificates",
+        "--geo-bypass",
+        "--extractor-args", "youtube:player_client=android,web,ios",
+        "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    ]
+
+    # Technique 1: Direct Live Stream / HLS extraction (Primary for Livestreams)
     try:
-        logger.info("Attempting Method 1: yt-dlp native section cut...")
+        logger.info("Technique 1: Extracting direct stream manifest with yt-dlp -g...")
+        yt_url_cmd = ["yt-dlp"] + base_args + ["-f", "best", "-g", clean_url]
+        res = subprocess.run(yt_url_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=40)
+        if res.returncode == 0:
+            direct_urls = res.stdout.decode().strip().split('\n')
+            direct_url = direct_urls[0] if direct_urls else None
+            if direct_url and direct_url.startswith("http"):
+                logger.info(f"Direct stream URL acquired. Streaming into FFmpeg for {duration}s...")
+                ffmpeg_cmd = [
+                    "ffmpeg", "-y",
+                    "-ss", "00:00:05",
+                    "-i", direct_url,
+                    "-t", str(duration),
+                    "-vf", "crop=ih*(9/16):ih,scale=1080:1920:flags=lanczos",
+                    "-c:v", "libx264", "-preset", "veryfast", "-crf", "22",
+                    "-c:a", "aac", "-b:a", "128k",
+                    output_path
+                ]
+                ff_res = subprocess.run(ffmpeg_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=120)
+                if os.path.exists(output_path) and os.path.getsize(output_path) > 10000:
+                    logger.info(f"✅ Technique 1 success: Generated 9:16 Short ({os.path.getsize(output_path)} bytes)")
+                    return True
+                else:
+                    logger.warning(f"FFmpeg transcode returned code {ff_res.returncode}: {ff_res.stderr.decode()[-300:]}")
+        else:
+            logger.warning(f"yt-dlp -g failed ({res.returncode}): {res.stderr.decode()[-300:]}")
+    except Exception as e:
+        logger.warning(f"Technique 1 exception: {e}")
+
+    # Technique 2: yt-dlp section download (for VODs / normal YouTube videos)
+    try:
+        logger.info("Technique 2: yt-dlp section cut...")
         yt_cmd = [
             "yt-dlp",
-            "--no-playlist",
-            "--extractor-args", "youtube:player_client=android,web",
             "--download-sections", f"*00:00:15-00:00:{15+duration}",
             "--force-keyframes-at-cuts",
             "-f", "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
             "-o", temp_raw,
-            clean_url
-        ]
-        subprocess.run(yt_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, check=True, timeout=90)
-
+        ] + base_args + [clean_url]
+        res = subprocess.run(yt_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=90)
         if os.path.exists(temp_raw) and os.path.getsize(temp_raw) > 10000:
-            logger.info("Raw segment downloaded. Cropping to 9:16 vertical (1080x1920)...")
             cmd_crop = [
                 "ffmpeg", "-y",
                 "-i", temp_raw,
@@ -120,84 +155,32 @@ def extract_and_cut_youtube_stream(stream_url, output_path, duration=35):
                 "-c:a", "aac", "-b:a", "128k",
                 output_path
             ]
-            subprocess.run(cmd_crop, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=60)
+            subprocess.run(cmd_crop, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60)
             if os.path.exists(temp_raw):
                 os.remove(temp_raw)
             if os.path.exists(output_path) and os.path.getsize(output_path) > 10000:
-                logger.info(f"✅ Method 1 success: Generated 9:16 Short ({os.path.getsize(output_path)} bytes)")
+                logger.info(f"✅ Technique 2 success: Generated 9:16 Short ({os.path.getsize(output_path)} bytes)")
                 return True
     except Exception as e:
-        logger.warning(f"Method 1 failed: {e}. Trying Method 2 (HLS stream capture)...")
+        logger.warning(f"Technique 2 exception: {e}")
         if os.path.exists(temp_raw):
             os.remove(temp_raw)
 
-    # Method 2: Extract direct HLS / MP4 stream URL and let FFmpeg cut
+    # Technique 3: yt-dlp pipe to ffmpeg
     try:
-        logger.info("Attempting Method 2: Direct stream extraction...")
-        yt_url_cmd = [
-            "yt-dlp",
-            "--no-playlist",
-            "--extractor-args", "youtube:player_client=android,web",
-            "-f", "best",
-            "-g",
-            clean_url
-        ]
-        direct_urls = subprocess.check_output(yt_url_cmd, stderr=subprocess.DEVNULL, timeout=30).decode().strip().split('\n')
-        direct_url = direct_urls[0] if direct_urls else None
-
-        if direct_url and direct_url.startswith("http"):
-            logger.info("Direct stream URL acquired. Streaming into FFmpeg...")
-            ffmpeg_cmd = [
-                "ffmpeg", "-y",
-                "-ss", "00:00:10",
-                "-t", str(duration),
-                "-i", direct_url,
-                "-vf", "crop=ih*(9/16):ih,scale=1080:1920:flags=lanczos",
-                "-c:v", "libx264", "-preset", "veryfast", "-crf", "22",
-                "-c:a", "aac", "-b:a", "128k",
-                output_path
-            ]
-            subprocess.run(ffmpeg_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=90)
-            if os.path.exists(output_path) and os.path.getsize(output_path) > 10000:
-                logger.info(f"✅ Method 2 success: Generated 9:16 Short ({os.path.getsize(output_path)} bytes)")
-                return True
+        logger.info("Technique 3: yt-dlp pipe to ffmpeg...")
+        pipe_cmd = (
+            f"yt-dlp --no-playlist --no-check-certificates --geo-bypass "
+            f"--extractor-args 'youtube:player_client=android,web' -f 'best' -o - '{clean_url}' "
+            f"| ffmpeg -y -i pipe:0 -t {duration} -vf 'crop=ih*(9/16):ih,scale=1080:1920:flags=lanczos' "
+            f"-c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 128k '{output_path}'"
+        )
+        subprocess.run(pipe_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=120)
+        if os.path.exists(output_path) and os.path.getsize(output_path) > 10000:
+            logger.info(f"✅ Technique 3 success: Generated 9:16 Short ({os.path.getsize(output_path)} bytes)")
+            return True
     except Exception as e:
-        logger.warning(f"Method 2 failed: {e}. Trying Method 3 (FFmpeg downloader)...")
-
-    # Method 3: yt-dlp downloader args with ffmpeg
-    try:
-        logger.info("Attempting Method 3: yt-dlp with FFmpeg downloader...")
-        cmd_dl = [
-            "yt-dlp",
-            "--no-playlist",
-            "--extractor-args", "youtube:player_client=android,web",
-            "--downloader", "ffmpeg",
-            "--downloader-args", f"ffmpeg_i:-t {duration}",
-            "-f", "best",
-            "-o", temp_raw,
-            clean_url
-        ]
-        subprocess.run(cmd_dl, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, check=True, timeout=90)
-
-        if os.path.exists(temp_raw):
-            cmd_crop = [
-                "ffmpeg", "-y",
-                "-i", temp_raw,
-                "-vf", "crop=ih*(9/16):ih,scale=1080:1920:flags=lanczos",
-                "-c:v", "libx264", "-preset", "veryfast", "-crf", "22",
-                "-c:a", "aac", "-b:a", "128k",
-                output_path
-            ]
-            subprocess.run(cmd_crop, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=60)
-            if os.path.exists(temp_raw):
-                os.remove(temp_raw)
-            if os.path.exists(output_path) and os.path.getsize(output_path) > 10000:
-                logger.info(f"✅ Method 3 success: Generated 9:16 Short ({os.path.getsize(output_path)} bytes)")
-                return True
-    except Exception as e:
-        logger.error(f"Method 3 failed: {e}")
-        if os.path.exists(temp_raw):
-            os.remove(temp_raw)
+        logger.error(f"Technique 3 failed: {e}")
 
     return False
 
