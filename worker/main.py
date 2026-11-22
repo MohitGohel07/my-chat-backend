@@ -103,7 +103,7 @@ def extract_and_cut_youtube_stream(stream_url, output_path, duration=35):
         "--extractor-args", "youtube:player_client=android,web,ios",
         "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
     ]
-
+    
     # Technique 1: Direct Live Stream / HLS extraction (Primary for Livestreams)
     try:
         logger.info("Technique 1: Extracting direct stream manifest with yt-dlp -g...")
