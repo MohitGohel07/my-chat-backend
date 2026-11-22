@@ -147,6 +147,9 @@ class StreamController extends Controller
     public function captureHighlight(Request $request, string $id): RedirectResponse
     {
         $stream = ClipperStream::findOrFail($id);
+        $stream->status = 'monitoring';
+        $stream->monitoring_started_at = now();
+        $stream->save();
 
         // Remove any old static sample clips
         ClipperClip::where('video_path', 'like', '%sample%')->orWhereNull('video_path')->delete();
