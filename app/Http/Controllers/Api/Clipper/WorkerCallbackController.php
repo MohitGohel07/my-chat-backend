@@ -78,18 +78,38 @@ class WorkerCallbackController extends Controller
      */
     public function clipCreated(Request $request): JsonResponse
     {
+        // Normalize tags if passed as JSON string or comma-separated string in multipart/form-data
+        if ($request->has('tags')) {
+            $tagsInput = $request->input('tags');
+            if (is_string($tagsInput)) {
+                $decoded = json_decode($tagsInput, true);
+                $tagsInput = is_array($decoded) ? $decoded : array_filter(array_map('trim', explode(',', $tagsInput)));
+            }
+            $request->merge(['tags' => (array) $tagsInput]);
+        }
+
+        // Normalize signals if passed as JSON string or string in multipart/form-data
+        if ($request->has('signals')) {
+            $signalsInput = $request->input('signals');
+            if (is_string($signalsInput)) {
+                $decoded = json_decode($signalsInput, true);
+                $signalsInput = is_array($decoded) ? $decoded : ['energy_spike' => 0.95];
+            }
+            $request->merge(['signals' => (array) $signalsInput]);
+        }
+
         $data = $request->validate([
             'stream_id' => ['required', 'exists:clipper_streams,id'],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'tags' => ['nullable', 'array'],
+            'tags' => ['nullable'],
             'duration' => ['required', 'numeric'],
             'aspect_ratio' => ['nullable', 'string'],
             'score' => ['required', 'numeric'],
             'video_path' => ['nullable', 'string'],
             'thumbnail_path' => ['nullable', 'string'],
             'captions_path' => ['nullable', 'string'],
-            'signals' => ['nullable', 'array'],
+            'signals' => ['nullable'],
             'start_seconds' => ['nullable', 'numeric'],
             'end_seconds' => ['nullable', 'numeric'],
             'file_size' => ['nullable', 'integer'],
@@ -110,6 +130,9 @@ class WorkerCallbackController extends Controller
             $videoPath = 'clips/' . $filename;
         }
 
+        $tags = is_array($data['tags'] ?? null) ? $data['tags'] : (json_decode($data['tags'] ?? '[]', true) ?: ['GTAVI', 'Shorts', 'Gaming']);
+        $signals = is_array($data['signals'] ?? null) ? $data['signals'] : (json_decode($data['signals'] ?? '[]', true) ?: ['energy_spike' => 0.95]);
+
         // 1. Create or link to session
         $session = ClipperSession::create([
             'stream_id' => $stream->id,
@@ -129,7 +152,7 @@ class WorkerCallbackController extends Controller
             'start_seconds' => $data['start_seconds'] ?? 0,
             'end_seconds' => $data['end_seconds'] ?? $data['duration'],
             'score' => $data['score'],
-            'signals' => $data['signals'] ?? ['energy_spike' => 0.95],
+            'signals' => $signals,
             'status' => 'clipped',
         ]);
 
@@ -140,7 +163,7 @@ class WorkerCallbackController extends Controller
             'highlight_id' => $highlight->id,
             'title' => $data['title'],
             'description' => $data['description'] ?? "Highlights from {$stream->name}! #GTAVI #Shorts #Gaming",
-            'tags' => $data['tags'] ?? ['GTAVI', 'Shorts', 'Gaming'],
+            'tags' => $tags,
             'duration' => $data['duration'],
             'aspect_ratio' => $data['aspect_ratio'] ?? '9:16',
             'video_path' => $videoPath,

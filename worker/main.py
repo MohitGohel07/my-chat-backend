@@ -212,19 +212,20 @@ def process_stream_slice(stream):
     file_size = os.path.getsize(clip_path)
 
     # Build payload to report back to Laravel Cloud
+    import json
     payload = {
         "stream_id": stream_id,
         "title": f"INSANE GTA VI HIGHLIGHT! 🔥 #{stream_name.replace(' ', '')} #Shorts",
         "description": f"Highlight captured live from {stream_name}.\n\nOriginal Stream: {stream_url}\n\n#GTAVI #Shorts #Gaming #GTA6",
-        "tags": ["GTAVI", "Shorts", "GTA6", "Gaming", "MikkGamer"],
+        "tags": json.dumps(["GTAVI", "Shorts", "GTA6", "Gaming", "MikkGamer"]),
         "duration": 35.0,
         "aspect_ratio": "9:16",
         "score": 96.5,
-        "signals": {
+        "signals": json.dumps({
             "energy_spike": 0.96,
             "scene_cut_density": 0.91,
             "speech_intensity": 0.93,
-        },
+        }),
         "start_seconds": 15.0,
         "end_seconds": 50.0,
         "file_size": file_size,
