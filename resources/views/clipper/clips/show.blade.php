@@ -51,15 +51,27 @@
                     <form action="{{ route('clipper.clips.approval', $clip->id) }}" method="POST" class="inline">
                         @csrf
                         <input type="hidden" name="action" value="approve">
-                        <button type="submit" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition">
-                            ✅ Approve for YouTube
+                        <input type="hidden" name="upload_type" value="short">
+                        <button type="submit" class="px-3.5 py-2 rounded-lg bg-pink-600 hover:bg-pink-500 text-white font-semibold text-xs transition flex items-center gap-1.5 shadow-lg shadow-pink-600/30">
+                            <span>📱</span>
+                            <span>Approve as YouTube Short</span>
+                        </button>
+                    </form>
+
+                    <form action="{{ route('clipper.clips.approval', $clip->id) }}" method="POST" class="inline">
+                        @csrf
+                        <input type="hidden" name="action" value="approve">
+                        <input type="hidden" name="upload_type" value="standard">
+                        <button type="submit" class="px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition flex items-center gap-1.5 shadow-lg shadow-indigo-600/30">
+                            <span>🎬</span>
+                            <span>Approve as Standard Video</span>
                         </button>
                     </form>
 
                     <form action="{{ route('clipper.clips.approval', $clip->id) }}" method="POST" class="inline">
                         @csrf
                         <input type="hidden" name="action" value="reject">
-                        <button type="submit" class="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-xs transition border border-zinc-700">
+                        <button type="submit" class="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-xs transition border border-zinc-700">
                             ❌ Reject / Archive
                         </button>
                     </form>

@@ -101,7 +101,18 @@
                     <option value="public" {{ $status['default_privacy'] === 'public' ? 'selected' : '' }}>Public (Published immediately to subscribers)</option>
                 </select>
                 <p class="text-[11px] text-zinc-500 mt-1">
-                    When set to Public, approved Shorts publish directly to your channel's public feed.
+                    When set to Public, approved videos publish directly to your channel's public feed.
+                </p>
+            </div>
+
+            <div>
+                <label for="default_upload_type" class="block text-xs font-medium text-zinc-300 mb-1">Default Publishing Format</label>
+                <select id="default_upload_type" name="default_upload_type" class="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500">
+                    <option value="short" {{ ($status['default_upload_type'] ?? 'short') === 'short' ? 'selected' : '' }}>📱 YouTube Short (9:16 Vertical, includes #Shorts tags)</option>
+                    <option value="standard" {{ ($status['default_upload_type'] ?? 'short') === 'standard' ? 'selected' : '' }}>🎬 Standard Video (Regular YouTube video)</option>
+                </select>
+                <p class="text-[11px] text-zinc-500 mt-1">
+                    Choose whether automatically enqueued clips should publish to the YouTube Shorts feed or standard video uploads.
                 </p>
             </div>
 

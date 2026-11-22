@@ -54,6 +54,7 @@ class ClipController extends Controller
     {
         $clip = ClipperClip::findOrFail($id);
         $action = $request->input('action', 'approve');
+        $uploadType = $request->input('upload_type', 'short');
 
         if ($action === 'approve') {
             $clip->approval_status = 'approved';
@@ -61,16 +62,22 @@ class ClipController extends Controller
 
             // Auto enqueue to upload queue if not already enqueued
             $defaultPrivacy = ClipperSetting::get('default_privacy', 'public');
-            ClipperUpload::firstOrCreate(
+            $upload = ClipperUpload::firstOrCreate(
                 ['clip_id' => $clip->id],
                 [
                     'status' => 'queued',
                     'privacy' => $defaultPrivacy,
+                    'upload_type' => $uploadType,
                     'attempts' => 0,
                 ]
             );
+            if ($request->filled('upload_type') && $upload->status !== 'published') {
+                $upload->upload_type = $uploadType;
+                $upload->save();
+            }
 
-            return back()->with('status', "Clip \"{$clip->title}\" approved and added to YouTube upload queue!");
+            $typeLabel = $uploadType === 'standard' ? 'Standard Video' : 'YouTube Short';
+            return back()->with('status', "Clip \"{$clip->title}\" approved and added to YouTube upload queue as {$typeLabel}!");
         }
 
         $clip->approval_status = 'rejected';

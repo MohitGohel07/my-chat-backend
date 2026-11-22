@@ -186,16 +186,18 @@ class WorkerCallbackController extends Controller
         $youtube = ClipperYoutubeAccount::where('is_active', true)->first();
         if ($youtube && $clip->approval_status === 'approved') {
             $defaultPrivacy = ClipperSetting::get('default_privacy', $stream->upload_privacy ?? 'public');
+            $defaultUploadType = ClipperSetting::get('default_upload_type', 'short');
             $upload = ClipperUpload::create([
                 'clip_id' => $clip->id,
                 'status' => 'queued',
                 'privacy' => $defaultPrivacy,
+                'upload_type' => $defaultUploadType,
                 'attempts' => 0,
             ]);
 
             ClipperLog::record(
                 'info',
-                "Dispatched clip [{$clip->id}] to YouTube Upload Queue for channel [{$youtube->channel_title}].",
+                "Dispatched clip [{$clip->id}] to YouTube Upload Queue ({$defaultUploadType}) for channel [{$youtube->channel_title}].",
                 $stream->id
             );
         }

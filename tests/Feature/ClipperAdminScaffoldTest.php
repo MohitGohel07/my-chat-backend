@@ -288,4 +288,144 @@ class ClipperAdminScaffoldTest extends TestCase
 
         $this->assertEquals('online', \App\Models\Clipper\ClipperSetting::get('worker_status'));
     }
+
+    public function test_youtube_publisher_uploads_as_short_with_resumable_protocol(): void
+    {
+        \Illuminate\Support\Facades\Http::fake([
+            'https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status' => \Illuminate\Support\Facades\Http::response('', 200, [
+                'Location' => 'https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&upload_id=mock_session_123',
+            ]),
+            'https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&upload_id=mock_session_123' => \Illuminate\Support\Facades\Http::response([
+                'id' => 'abc123xyz99',
+                'snippet' => ['title' => 'GTA VI Moment #Shorts'],
+            ], 200),
+        ]);
+
+        $stream = ClipperStream::create([
+            'name' => 'GTA VI Test',
+            'source_url' => 'https://youtube.com/live/mock',
+        ]);
+
+        $clip = \App\Models\Clipper\ClipperClip::create([
+            'stream_id' => $stream->id,
+            'title' => 'Incredible Stunt Moment',
+            'description' => 'Crazy car stunt',
+            'duration' => 30.0,
+            'score' => 95.0,
+            'video_path' => 'clips/sample_gtavi_short.mp4',
+            'status' => 'ready',
+            'approval_status' => 'approved',
+        ]);
+
+        $account = \App\Models\Clipper\ClipperYoutubeAccount::create([
+            'channel_id' => 'UC_TEST',
+            'channel_title' => 'GTA VI Official',
+            'access_token' => 'mock_token',
+            'is_active' => true,
+        ]);
+
+        $upload = \App\Models\Clipper\ClipperUpload::create([
+            'clip_id' => $clip->id,
+            'status' => 'queued',
+            'upload_type' => 'short',
+            'privacy' => 'public',
+        ]);
+
+        // Fake sample file for upload if not present
+        if (! file_exists(public_path('clips/sample_gtavi_short.mp4'))) {
+            @mkdir(public_path('clips'), 0755, true);
+            file_put_contents(public_path('clips/sample_gtavi_short.mp4'), 'MOCK_VIDEO_DATA_FOR_TESTING');
+        }
+
+        $publisher = new \App\Services\Clipper\YouTubePublisher();
+        $result = $publisher->publish($upload);
+
+        $this->assertTrue($result);
+        $upload->refresh();
+        $this->assertEquals('published', $upload->status);
+        $this->assertEquals('abc123xyz99', $upload->youtube_video_id);
+        $this->assertEquals('https://www.youtube.com/shorts/abc123xyz99', $upload->youtube_url);
+    }
+
+    public function test_youtube_publisher_uploads_as_standard_video(): void
+    {
+        \Illuminate\Support\Facades\Http::fake([
+            'https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status' => \Illuminate\Support\Facades\Http::response('', 200, [
+                'Location' => 'https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&upload_id=mock_session_std_456',
+            ]),
+            'https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&upload_id=mock_session_std_456' => \Illuminate\Support\Facades\Http::response([
+                'id' => 'std987vid00',
+                'snippet' => ['title' => 'GTA VI Full Gameplay Clip'],
+            ], 200),
+        ]);
+
+        $stream = ClipperStream::create([
+            'name' => 'GTA VI Test',
+            'source_url' => 'https://youtube.com/live/mock',
+        ]);
+
+        $clip = \App\Models\Clipper\ClipperClip::create([
+            'stream_id' => $stream->id,
+            'title' => 'Full Mission Highlight #Shorts',
+            'description' => 'Complete robbery #Shorts',
+            'duration' => 50.0,
+            'score' => 90.0,
+            'video_path' => 'clips/sample_gtavi_short.mp4',
+            'status' => 'ready',
+            'approval_status' => 'approved',
+        ]);
+
+        \App\Models\Clipper\ClipperYoutubeAccount::create([
+            'channel_id' => 'UC_TEST',
+            'channel_title' => 'GTA VI Official',
+            'access_token' => 'mock_token',
+            'is_active' => true,
+        ]);
+
+        $upload = \App\Models\Clipper\ClipperUpload::create([
+            'clip_id' => $clip->id,
+            'status' => 'queued',
+            'upload_type' => 'standard',
+            'privacy' => 'public',
+        ]);
+
+        $publisher = new \App\Services\Clipper\YouTubePublisher();
+        $result = $publisher->publish($upload);
+
+        $this->assertTrue($result);
+        $upload->refresh();
+        $this->assertEquals('published', $upload->status);
+        $this->assertEquals('std987vid00', $upload->youtube_video_id);
+        $this->assertEquals('https://www.youtube.com/watch?v=std987vid00', $upload->youtube_url);
+    }
+
+    public function test_admin_can_approve_clip_as_short_or_standard_video(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+
+        $stream = ClipperStream::create([
+            'name' => 'GTA VI Stream',
+            'source_url' => 'https://youtube.com/live/test',
+        ]);
+
+        $clip = \App\Models\Clipper\ClipperClip::create([
+            'stream_id' => $stream->id,
+            'title' => 'Chase Scene',
+            'duration' => 35.0,
+            'score' => 92.0,
+            'status' => 'ready',
+            'approval_status' => 'pending',
+        ]);
+
+        // Approve as standard video
+        $this->actingAs($admin)->post('/clipper/clips/' . $clip->id . '/approval', [
+            'action' => 'approve',
+            'upload_type' => 'standard',
+        ])->assertRedirect();
+
+        $this->assertEquals('approved', $clip->fresh()->approval_status);
+        $upload = \App\Models\Clipper\ClipperUpload::where('clip_id', $clip->id)->first();
+        $this->assertNotNull($upload);
+        $this->assertEquals('standard', $upload->upload_type);
+    }
 }

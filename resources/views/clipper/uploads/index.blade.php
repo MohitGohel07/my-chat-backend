@@ -43,13 +43,19 @@
             @foreach ($queue as $item)
                 <div class="gta-card flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div class="space-y-1">
-                        <div class="flex items-center gap-2">
-                            <span class="font-bold text-white text-sm">{{ $item->clip?->title ?? 'Shorts Video #' . $item->id }}</span>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="font-bold text-white text-sm">{{ $item->clip?->title ?? 'Video #' . $item->id }}</span>
                             <span class="badge {{ $item->status === 'published' ? 'badge-green' : ($item->status === 'failed' ? 'badge-rose' : 'badge-purple') }}">
                                 {{ ucfirst($item->status) }}
                             </span>
+                            @if ($item->upload_type === 'standard')
+                                <span class="badge badge-amber text-[10px]">🎬 Standard Video</span>
+                            @else
+                                <span class="badge badge-purple text-[10px]">📱 YouTube Short</span>
+                            @endif
                         </div>
                         <div class="text-xs text-zinc-400">
+                            Format: <span class="text-zinc-200 font-semibold">{{ $item->upload_type === 'standard' ? 'Standard Video' : 'YouTube Short (9:16)' }}</span> •
                             Privacy: <span class="capitalize text-zinc-300">{{ $item->privacy }}</span> •
                             Attempts: {{ $item->attempts }}
                             @if ($item->youtube_url)
@@ -62,26 +68,45 @@
                             </div>
                         @endif
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 flex-wrap">
                         @if ($item->status === 'queued')
                             <form action="{{ route('clipper.uploads.publish', $item->id) }}" method="POST" class="inline">
                                 @csrf
-                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-pink-600 hover:bg-pink-500 text-white text-xs font-semibold shadow-lg shadow-pink-600/30 transition flex items-center gap-1">
-                                    <span>🚀</span>
-                                    <span>Publish to YouTube</span>
+                                <input type="hidden" name="upload_type" value="short">
+                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-pink-600 hover:bg-pink-500 text-white text-xs font-semibold shadow-lg shadow-pink-600/30 transition flex items-center gap-1" title="Publish as 9:16 vertical Short with #Shorts tag">
+                                    <span>📱</span>
+                                    <span>Publish as Short</span>
+                                </button>
+                            </form>
+                            <form action="{{ route('clipper.uploads.publish', $item->id) }}" method="POST" class="inline">
+                                @csrf
+                                <input type="hidden" name="upload_type" value="standard">
+                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/30 transition flex items-center gap-1" title="Publish as Standard regular YouTube Video">
+                                    <span>🎬</span>
+                                    <span>Publish as Video</span>
                                 </button>
                             </form>
                         @elseif ($item->status === 'failed')
-                            <form action="{{ route('clipper.uploads.retry', $item->id) }}" method="POST" class="inline">
+                            <form action="{{ route('clipper.uploads.publish', $item->id) }}" method="POST" class="inline">
                                 @csrf
-                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold border border-zinc-700">
-                                    Retry Upload
+                                <input type="hidden" name="upload_type" value="short">
+                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-pink-600 hover:bg-pink-500 text-white text-xs font-semibold shadow-lg shadow-pink-600/30 transition flex items-center gap-1">
+                                    <span>📱</span>
+                                    <span>Retry as Short</span>
+                                </button>
+                            </form>
+                            <form action="{{ route('clipper.uploads.publish', $item->id) }}" method="POST" class="inline">
+                                @csrf
+                                <input type="hidden" name="upload_type" value="standard">
+                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/30 transition flex items-center gap-1">
+                                    <span>🎬</span>
+                                    <span>Retry as Video</span>
                                 </button>
                             </form>
                         @elseif ($item->status === 'published' && $item->youtube_url)
                             <a href="{{ $item->youtube_url }}" target="_blank" class="px-3 py-1.5 rounded-lg bg-emerald-950 text-emerald-300 border border-emerald-800 text-xs font-semibold hover:bg-emerald-900 transition flex items-center gap-1">
                                 <span>▶️</span>
-                                <span>Watch Short</span>
+                                <span>{{ $item->upload_type === 'standard' ? 'Watch Video' : 'Watch Short' }}</span>
                             </a>
                         @endif
                     </div>

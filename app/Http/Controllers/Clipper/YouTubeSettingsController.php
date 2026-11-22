@@ -62,6 +62,7 @@ class YouTubeSettingsController extends Controller
             'channel_url' => $channelUrl,
             'auto_upload_enabled' => (bool) ClipperSetting::get('auto_upload_enabled', config('clipper.upload_enabled', false)),
             'default_privacy' => ClipperSetting::get('default_privacy', config('clipper.upload_privacy', 'private')),
+            'default_upload_type' => ClipperSetting::get('default_upload_type', 'short'),
             'daily_limit' => (int) ClipperSetting::get('daily_limit', config('clipper.upload_daily_limit', 3)),
             'client_id_configured' => ! empty(config('clipper.youtube.client_id')),
             'client_secret_configured' => ! empty(config('clipper.youtube.client_secret')),
@@ -194,11 +195,13 @@ class YouTubeSettingsController extends Controller
     {
         $validated = $request->validate([
             'default_privacy' => ['required', 'in:private,unlisted,public'],
+            'default_upload_type' => ['nullable', 'in:short,standard'],
             'daily_limit' => ['required', 'integer', 'min:1', 'max:20'],
             'auto_upload_enabled' => ['nullable'],
         ]);
 
         ClipperSetting::set('default_privacy', $validated['default_privacy']);
+        ClipperSetting::set('default_upload_type', $validated['default_upload_type'] ?? 'short');
         ClipperSetting::set('daily_limit', (int) $validated['daily_limit']);
         ClipperSetting::set('auto_upload_enabled', $request->boolean('auto_upload_enabled'));
 

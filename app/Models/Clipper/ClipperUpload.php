@@ -18,10 +18,16 @@ class ClipperUpload extends Model
         'youtube_url',
         'status',
         'privacy',
+        'upload_type',
         'attempts',
         'last_error',
         'uploaded_at',
     ];
+
+    public function getUploadTypeAttribute(?string $value): string
+    {
+        return $value ?: 'short';
+    }
 
     protected function casts(): array
     {

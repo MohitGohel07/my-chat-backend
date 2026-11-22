@@ -99,13 +99,24 @@
                             Preview & Details &rarr;
                         </a>
                         @if ($clip->approval_status === 'pending')
-                            <form action="{{ route('clipper.clips.approval', $clip->id) }}" method="POST" class="inline">
-                                @csrf
-                                <input type="hidden" name="action" value="approve">
-                                <button type="submit" class="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold transition">
-                                    Approve
-                                </button>
-                            </form>
+                            <div class="flex items-center gap-1.5">
+                                <form action="{{ route('clipper.clips.approval', $clip->id) }}" method="POST" class="inline">
+                                    @csrf
+                                    <input type="hidden" name="action" value="approve">
+                                    <input type="hidden" name="upload_type" value="short">
+                                    <button type="submit" class="px-2 py-1 rounded bg-pink-600 hover:bg-pink-500 text-white text-[11px] font-semibold transition" title="Approve and queue as YouTube Short">
+                                        📱 Short
+                                    </button>
+                                </form>
+                                <form action="{{ route('clipper.clips.approval', $clip->id) }}" method="POST" class="inline">
+                                    @csrf
+                                    <input type="hidden" name="action" value="approve">
+                                    <input type="hidden" name="upload_type" value="standard">
+                                    <button type="submit" class="px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-semibold transition" title="Approve and queue as Standard Video">
+                                        🎬 Video
+                                    </button>
+                                </form>
+                            </div>
                         @endif
                     </div>
                 </div>

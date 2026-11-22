@@ -113,20 +113,23 @@ def extract_and_cut_youtube_stream(stream_url, output_path, duration=35):
             direct_urls = res.stdout.decode().strip().split('\n')
             direct_url = direct_urls[0] if direct_urls else None
             if direct_url and direct_url.startswith("http"):
-                logger.info(f"Direct stream URL acquired. Streaming into FFmpeg for {duration}s...")
+                logger.info(f"Direct stream URL acquired. Streaming into FFmpeg for {duration}s in Full HD (1080x1920)...")
                 ffmpeg_cmd = [
                     "ffmpeg", "-y",
                     "-ss", "00:00:05",
                     "-i", direct_url,
                     "-t", str(duration),
                     "-vf", "crop=ih*(9/16):ih,scale=1080:1920:flags=lanczos",
-                    "-c:v", "libx264", "-preset", "veryfast", "-crf", "22",
-                    "-c:a", "aac", "-b:a", "128k",
+                    "-c:v", "libx264", "-preset", "medium", "-crf", "18",
+                    "-b:v", "8M", "-maxrate", "12M", "-bufsize", "16M",
+                    "-pix_fmt", "yuv420p",
+                    "-c:a", "aac", "-b:a", "192k",
+                    "-movflags", "+faststart",
                     output_path
                 ]
                 ff_res = subprocess.run(ffmpeg_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=120)
                 if os.path.exists(output_path) and os.path.getsize(output_path) > 10000:
-                    logger.info(f"✅ Technique 1 success: Generated 9:16 Short ({os.path.getsize(output_path)} bytes)")
+                    logger.info(f"✅ Technique 1 success: Generated Full HD 9:16 Short ({os.path.getsize(output_path)} bytes)")
                     return True
                 else:
                     logger.warning(f"FFmpeg transcode returned code {ff_res.returncode}: {ff_res.stderr.decode()[-300:]}")
@@ -137,7 +140,7 @@ def extract_and_cut_youtube_stream(stream_url, output_path, duration=35):
 
     # Technique 2: yt-dlp section download (for VODs / normal YouTube videos)
     try:
-        logger.info("Technique 2: yt-dlp section cut...")
+        logger.info("Technique 2: yt-dlp section cut in Full HD...")
         yt_cmd = [
             "yt-dlp",
             "--download-sections", f"*00:00:15-00:00:{15+duration}",
@@ -151,15 +154,18 @@ def extract_and_cut_youtube_stream(stream_url, output_path, duration=35):
                 "ffmpeg", "-y",
                 "-i", temp_raw,
                 "-vf", "crop=ih*(9/16):ih,scale=1080:1920:flags=lanczos",
-                "-c:v", "libx264", "-preset", "veryfast", "-crf", "22",
-                "-c:a", "aac", "-b:a", "128k",
+                "-c:v", "libx264", "-preset", "medium", "-crf", "18",
+                "-b:v", "8M", "-maxrate", "12M", "-bufsize", "16M",
+                "-pix_fmt", "yuv420p",
+                "-c:a", "aac", "-b:a", "192k",
+                "-movflags", "+faststart",
                 output_path
             ]
             subprocess.run(cmd_crop, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60)
             if os.path.exists(temp_raw):
                 os.remove(temp_raw)
             if os.path.exists(output_path) and os.path.getsize(output_path) > 10000:
-                logger.info(f"✅ Technique 2 success: Generated 9:16 Short ({os.path.getsize(output_path)} bytes)")
+                logger.info(f"✅ Technique 2 success: Generated Full HD 9:16 Short ({os.path.getsize(output_path)} bytes)")
                 return True
     except Exception as e:
         logger.warning(f"Technique 2 exception: {e}")
@@ -168,16 +174,17 @@ def extract_and_cut_youtube_stream(stream_url, output_path, duration=35):
 
     # Technique 3: yt-dlp pipe to ffmpeg
     try:
-        logger.info("Technique 3: yt-dlp pipe to ffmpeg...")
+        logger.info("Technique 3: yt-dlp pipe to ffmpeg in Full HD...")
         pipe_cmd = (
             f"yt-dlp --no-playlist --no-check-certificates --geo-bypass "
             f"--extractor-args 'youtube:player_client=android,web' -f 'best' -o - '{clean_url}' "
             f"| ffmpeg -y -i pipe:0 -t {duration} -vf 'crop=ih*(9/16):ih,scale=1080:1920:flags=lanczos' "
-            f"-c:v libx264 -preset veryfast -crf 22 -c:a aac -b:a 128k '{output_path}'"
+            f"-c:v libx264 -preset medium -crf 18 -b:v 8M -maxrate 12M -bufsize 16M -pix_fmt yuv420p "
+            f"-c:a aac -b:a 192k -movflags +faststart '{output_path}'"
         )
         subprocess.run(pipe_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=120)
         if os.path.exists(output_path) and os.path.getsize(output_path) > 10000:
-            logger.info(f"✅ Technique 3 success: Generated 9:16 Short ({os.path.getsize(output_path)} bytes)")
+            logger.info(f"✅ Technique 3 success: Generated Full HD 9:16 Short ({os.path.getsize(output_path)} bytes)")
             return True
     except Exception as e:
         logger.error(f"Technique 3 failed: {e}")

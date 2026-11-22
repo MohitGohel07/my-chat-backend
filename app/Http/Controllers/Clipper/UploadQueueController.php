@@ -36,11 +36,14 @@ class UploadQueueController extends Controller
     /**
      * Retry a failed upload item.
      */
-    public function retry(string $id): RedirectResponse
+    public function retry(Request $request, string $id): RedirectResponse
     {
         $upload = ClipperUpload::findOrFail($id);
         $upload->status = 'queued';
         $upload->last_error = null;
+        if ($request->filled('upload_type')) {
+            $upload->upload_type = $request->input('upload_type');
+        }
         $upload->save();
 
         return back()->with('status', 'Upload task requeued for publishing.');
@@ -49,13 +52,20 @@ class UploadQueueController extends Controller
     /**
      * Instantly trigger upload processing for an item.
      */
-    public function publishNow(string $id, YouTubePublisher $publisher): RedirectResponse
+    public function publishNow(Request $request, string $id, YouTubePublisher $publisher): RedirectResponse
     {
         $upload = ClipperUpload::findOrFail($id);
+
+        if ($request->filled('upload_type')) {
+            $upload->upload_type = $request->input('upload_type');
+            $upload->save();
+        }
+
         $success = $publisher->publish($upload);
 
         if ($success) {
-            return back()->with('status', '🎉 Successfully published to YouTube Shorts!');
+            $typeLabel = ($upload->upload_type === 'standard') ? 'Standard Video' : 'YouTube Short';
+            return back()->with('status', "🎉 Successfully published to YouTube as {$typeLabel}!");
         }
 
         return back()->with('error', 'Upload failed: ' . ($upload->last_error ?? 'Check System Logs for details.'));
